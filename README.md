@@ -59,3 +59,8 @@ Each change is versioned for traceability.
 Version Retrieval:
 
 Users can request previous versions, which the backend fetches from DynamoDB.
+
+## Choices
+### Rocket Framework
+I chose to work with rocket as it works with a fully asynchronous core and all asynchronous tasks are multiplexed on a configurable number of worker threads.
+

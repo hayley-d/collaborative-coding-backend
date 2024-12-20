@@ -1,0 +1,4 @@
+
+pub struct ApiError {
+    #[status
+}
