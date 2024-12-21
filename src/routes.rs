@@ -4,6 +4,7 @@ use crate::rga::rga::RGA;
 use crate::S4Vector;
 use rocket::serde::json::Json;
 use rocket::tokio::sync::Mutex;
+use rocket::{get, post};
 use serde::{Deserialize, Serialize};
 
 type SharedRGA = Arc<Mutex<RGA>>;
@@ -53,7 +54,7 @@ pub async fn delete(request: Json<OperationRequest>, rga: &rocket::State<SharedR
     let mut rga = rga.lock().await.unwrap();
 
     if let Some(value) = &request.value {
-        match rga.local_update(request.s4vector.unwrap(), value) {
+        match rga.local_delete(request.s4vector.unwrap()) {
             Ok(_) => "Delete successful".to_string(),
             Err(err) => format!("Delete failed: {}", err),
         }
@@ -64,11 +65,19 @@ pub async fn delete(request: Json<OperationRequest>, rga: &rocket::State<SharedR
 
 /// Applies an insert opperation received from another replica
 #[post("/remote/insert", data = "<request>")]
-pub async fn insert(request: Json<OperationRequest>, rga: &rocket::State<SharedRGA>) -> String {
+pub async fn remote_insert(
+    request: Json<OperationRequest>,
+    rga: &rocket::State<SharedRGA>,
+) -> String {
     let mut rga = rga.lock().await.unwrap();
 
     if let Some(value) = &request.value {
-        match rga.remote_insert(value, request.left, request.right) {
+        match rga.remote_insert(
+            value,
+            request.s4vector.unwrap(),
+            request.left,
+            request.right,
+        ) {
             Ok(_) => "Insert successful".to_string(),
             Err(err) => format!("Insert Failed {}", err),
         }
@@ -79,7 +88,10 @@ pub async fn insert(request: Json<OperationRequest>, rga: &rocket::State<SharedR
 
 /// Applies an update opperation received from another replica
 #[post("/remote/update", data = "<request>")]
-pub async fn update(request: Json<OperationRequest>, rga: &rocket::State<SharedRGA>) -> String {
+pub async fn remote_update(
+    request: Json<OperationRequest>,
+    rga: &rocket::State<SharedRGA>,
+) -> String {
     let mut rga = rga.lock().await.unwrap();
 
     if let Some(value) = &request.value {
@@ -94,11 +106,14 @@ pub async fn update(request: Json<OperationRequest>, rga: &rocket::State<SharedR
 
 /// Applies a delete opperation received from another replica
 #[post("/remote/delete", data = "<request>")]
-pub async fn delete(request: Json<OperationRequest>, rga: &rocket::State<SharedRGA>) -> String {
+pub async fn remote_delete(
+    request: Json<OperationRequest>,
+    rga: &rocket::State<SharedRGA>,
+) -> String {
     let mut rga = rga.lock().await.unwrap();
 
     if let Some(value) = &request.value {
-        match rga.remote_update(request.s4vector.unwrap(), value) {
+        match rga.remote_delete(request.s4vector.unwrap()) {
             Ok(_) => "Delete successful".to_string(),
             Err(err) => format!("Delete failed: {}", err),
         }

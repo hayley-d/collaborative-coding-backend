@@ -7,3 +7,4 @@ edition = "2021"
 rocket = {version="0.5.1",features=["tls","json","secrets"]}
 miette = "7.4.0"
 serde = {version="1.0.216",features=["derive"]}
+thiserror = "2.0.8"

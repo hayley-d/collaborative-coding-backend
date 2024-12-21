@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 /// `S4Vector` is a structure representing an operation in a distributed system. It ensures
 /// causal consistency and deterministic ordering for collaborative applications, particularly
 /// for CRDTs (Conflict-free Replicated Data Types) like the Replicated Growable Array (RGA).
@@ -28,7 +30,7 @@
 ///
 /// assert!(s4_1 < s4_2); // Demonstrates correct ordering
 /// ```
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 pub struct S4Vector {
     /// Session ID, ensuring global uniqueness of operations within a session.
     pub ssn: u64,

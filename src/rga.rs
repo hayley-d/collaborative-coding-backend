@@ -1,4 +1,6 @@
 pub mod rga {
+    use rocket::tokio::sync::RwLock;
+
     /// The `RGA` module implements a Replicated Growable Array (RGA),
     /// a Conflict-free Replicated Data Type (CRDT) designed for distributed systems.
     /// This data structure supports concurrent operations such as insertions,
@@ -13,7 +15,7 @@ pub mod rga {
     /// - **Efficient Buffering**: Handles out-of-order operations with a buffering
     ///   mechanism that resolves dependencies dynamically.
     ///
-    /// # Example Usage
+    /// # Example
     /// ```rust
     /// use crdt::rga::rga::RGA;
     /// use crdt::S4Vector;
@@ -21,23 +23,21 @@ pub mod rga {
     /// let mut rga = RGA::new(1, 1);  // Create a new RGA instance.
     ///
     /// // Insert a value at the start.
-    /// let s4_a = rga.local_insert("A".to_string(), None, None).unwrap().s4vector;
+    /// let s4_a = rga.local_insert("A".to_string(), None, None).await.unwrap().s4vector;
     ///
     /// // Insert another value after "A".
-    /// let s4_b = rga.local_insert("B".to_string(), Some(s4_a.clone()), None).unwrap().s4vector;
+    /// let s4_b = rga.local_insert("B".to_string(), Some(s4_a.clone()), None).await.unwrap().s4vector;
     ///
     /// // Delete the first value.
-    /// rga.local_delete(s4_a.clone()).unwrap();
+    /// rga.local_delete(s4_a.clone()).await.unwrap();
     ///
     /// // Read the current state.
-    /// let result = rga.read();
+    /// let result = rga.read().await;
     /// assert_eq!(result, vec!["B".to_string()]);
     /// ```
     use crate::S4Vector;
-    use serde::{Deserialize, Serialize};
-    use std::cell::RefCell;
     use std::collections::{HashMap, VecDeque};
-    use std::rc::Rc;
+    use std::sync::Arc;
     #[allow(dead_code)]
 
     /// Represents a node in the RGA, containing the actual data and metadata for traversal and consistency.    
@@ -80,7 +80,7 @@ pub mod rga {
         /// The head of the linked list.
         head: Option<S4Vector>,
         /// Maps `S4Vector` identifiers to `Node` instances.
-        hash_map: HashMap<S4Vector, Rc<RefCell<Node>>>,
+        hash_map: HashMap<S4Vector, Arc<RwLock<Node>>>,
         /// A Buffer for out-of-order operations.
         buffer: VecDeque<Operation>,
         /// The current session ID.
@@ -97,7 +97,7 @@ pub mod rga {
         DependancyError,
     }
 
-    #[derive(Debug, Serialize, Deserialize)]
+    #[derive(Debug)]
     pub struct BroadcastOperation {
         pub operation: OperationType,
         pub s4vector: S4Vector,
@@ -186,14 +186,14 @@ pub mod rga {
             };
         }
 
-        fn insert_into_list(&mut self, node: Rc<RefCell<Node>>) -> Rc<RefCell<Node>> {
-            let left: Option<S4Vector> = node.borrow().left.clone();
+        async fn insert_into_list(&mut self, node: Arc<RwLock<Node>>) -> Arc<RwLock<Node>> {
+            let left: Option<S4Vector> = node.read().await.left.clone();
 
             if let Some(left) = left {
                 let mut current: S4Vector = left.clone();
                 while let Some(node) = self.hash_map.get(&current) {
-                    if let Some(next_s4) = &node.borrow_mut().right {
-                        if next_s4 > &node.borrow().s4vector {
+                    if let Some(next_s4) = &node.read().await.right {
+                        if next_s4 > &node.read().await.s4vector {
                             break;
                         }
                         current = next_s4.clone();
@@ -203,18 +203,18 @@ pub mod rga {
                 }
 
                 if let Some(other) = self.hash_map.get(&current) {
-                    node.borrow_mut().right = other.borrow().right;
-                    other.borrow_mut().right = Some(node.borrow().s4vector);
+                    node.write().await.right = other.read().await.right;
+                    other.write().await.right = Some(node.read().await.s4vector);
                 }
             }
 
             if self.head.is_none() {
-                self.head = Some(node.borrow().s4vector);
+                self.head = Some(node.read().await.s4vector);
             } else if left.is_none() {
-                self.head = Some(node.borrow().s4vector);
+                self.head = Some(node.read().await.s4vector);
             }
 
-            return Rc::clone(&node);
+            return Arc::clone(&node);
         }
 
         /// Inserts a new value into the RGA.
@@ -232,9 +232,9 @@ pub mod rga {
         /// use crdt::rga::rga::RGA;
         /// use crdt::S4Vector;
         /// let mut rga = RGA::new(1,1);
-        /// rga.local_insert("A".to_string(), None, None).unwrap();
+        /// rga.local_insert("A".to_string(), None, None)await.unwrap();
         /// ```
-        pub fn local_insert(
+        pub async fn local_insert(
             &mut self,
             value: String,
             left: Option<S4Vector>,
@@ -323,21 +323,26 @@ pub mod rga {
                     Node::new(value, new_s4, None, None)
                 }
             };
-            let new_node: Rc<RefCell<Node>> = Rc::new(RefCell::new(new_node));
-            let node: Rc<RefCell<Node>> = self.insert_into_list(new_node);
+            let new_node: Arc<RwLock<Node>> = Arc::new(RwLock::new(new_node));
+            let node: Arc<RwLock<Node>> = self.insert_into_list(new_node).await;
 
             // Insert into the hash table
             self.hash_map
-                .insert(node.borrow().s4vector, Rc::clone(&node));
+                .insert(node.read().await.s4vector, Arc::clone(&node));
 
             self.apply_buffered_operations();
 
+            let (s4vector, value, left, right) = match node.read().await {
+                node => (node.s4vector, node.value.clone(), node.left, node.right),
+                _ => unreachable!(),
+            };
+
             return Ok(BroadcastOperation {
                 operation: OperationType::Insert,
-                s4vector: node.borrow().s4vector,
-                value: Some(node.borrow().value.clone()),
-                left: node.borrow().left.clone(),
-                right: node.borrow().right.clone(),
+                s4vector,
+                value: Some(value),
+                left,
+                right,
             });
         }
 
@@ -348,12 +353,12 @@ pub mod rga {
         ///
         /// # Returns
         /// `Ok(())` if the deletion is successful, otherwise an error message.
-        pub fn local_delete(
+        pub async fn local_delete(
             &mut self,
             s4vector: S4Vector,
         ) -> Result<BroadcastOperation, OperationError> {
-            let node: Rc<RefCell<Node>> = match self.hash_map.get(&s4vector) {
-                Some(node) => Rc::clone(&node),
+            let node: Arc<RwLock<Node>> = match self.hash_map.get(&s4vector) {
+                Some(node) => Arc::clone(&node),
                 None => {
                     self.buffer.push_back(Operation {
                         operation: OperationType::Delete,
@@ -366,16 +371,21 @@ pub mod rga {
                 }
             };
 
-            node.borrow_mut().tombstone = true;
+            node.write().await.tombstone = true;
 
             self.apply_buffered_operations();
 
+            let (s4vector, left, right) = match node.read().await {
+                node => (node.s4vector, node.left, node.right),
+                _ => unreachable!(),
+            };
+
             return Ok(BroadcastOperation {
                 operation: OperationType::Delete,
-                s4vector: node.borrow().s4vector,
+                s4vector,
                 value: None,
-                left: node.borrow().left.clone(),
-                right: node.borrow().right.clone(),
+                left,
+                right,
             });
         }
 
@@ -386,13 +396,13 @@ pub mod rga {
         ///
         /// # Returns
         /// `Ok(())` if the deletion is successful, otherwise an error message.
-        pub fn local_update(
+        pub async fn local_update(
             &mut self,
             s4vector: S4Vector,
             value: String,
         ) -> Result<BroadcastOperation, OperationError> {
-            let node: Rc<RefCell<Node>> = match &self.hash_map.get(&s4vector) {
-                Some(node) => Rc::clone(node),
+            let node: Arc<RwLock<Node>> = match &self.hash_map.get(&s4vector) {
+                Some(node) => Arc::clone(node),
                 None => {
                     self.buffer.push_back(Operation {
                         operation: OperationType::Update,
@@ -404,23 +414,26 @@ pub mod rga {
                     return Err(OperationError::DependancyError);
                 }
             };
-            if !node.borrow().tombstone {
-                node.borrow_mut().value = value;
+            if !node.read().await.tombstone {
+                node.write().await.value = value;
             }
             self.apply_buffered_operations();
-
+            let (value, left, right) = match node.read().await {
+                node => (node.value.clone(), node.left, node.right),
+                _ => unreachable!(),
+            };
             return Ok(BroadcastOperation {
                 operation: OperationType::Update,
                 s4vector,
-                value: Some(node.borrow().value.clone()),
-                left: node.borrow().left.clone(),
-                right: node.borrow().right.clone(),
+                value: Some(value),
+                left,
+                right,
             });
         }
 
         /// Remote operation to add a new element at a position based on a provided UID
         /// This operation updates the RGA to ensure eventual consistency
-        pub fn remote_insert(
+        pub async fn remote_insert(
             &mut self,
             value: String,
             s4vector: S4Vector,
@@ -433,34 +446,34 @@ pub mod rga {
                 (None, Some(r)) => Node::new(value, s4vector, None, Some(r)),
                 (None, None) => Node::new(value, s4vector, None, None),
             };
-            let new_node: Rc<RefCell<Node>> = Rc::new(RefCell::new(new_node));
-            let node: Rc<RefCell<Node>> = self.insert_into_list(new_node);
+            let new_node: Arc<RwLock<Node>> = Arc::new(RwLock::new(new_node));
+            let node: Arc<RwLock<Node>> = self.insert_into_list(new_node).await;
 
             self.hash_map
-                .insert(node.borrow().s4vector, Rc::clone(&node));
+                .insert(node.read().await.s4vector, Arc::clone(&node));
             self.apply_buffered_operations();
         }
 
         /// Remote operation to remove an ekement given the UID
         /// This operation updates the RGA to ensure eventual consistency
-        pub fn remote_delete(&mut self, s4vector: S4Vector) {
-            let node: Rc<RefCell<Node>> = match self.hash_map.get(&s4vector) {
-                Some(node) => Rc::clone(&node),
+        pub async fn remote_delete(&mut self, s4vector: S4Vector) {
+            let node: Arc<RwLock<Node>> = match self.hash_map.get(&s4vector) {
+                Some(node) => Arc::clone(&node),
                 None => {
                     // The values has not been added yet
                     return;
                 }
             };
-            node.borrow_mut().tombstone = true;
+            node.write().await.tombstone = true;
             self.apply_buffered_operations();
         }
 
         /// Remote operation to update an element
         /// This operation updates the RGA to ensure eventual consistency
-        pub fn remote_update(&mut self, s4vector: S4Vector, value: String) {
-            let node: Rc<RefCell<Node>> = Rc::clone(&self.hash_map[&s4vector]);
-            if !node.borrow().tombstone {
-                node.borrow_mut().value = value;
+        pub async fn remote_update(&mut self, s4vector: S4Vector, value: String) {
+            let node: Arc<RwLock<Node>> = Arc::clone(&self.hash_map[&s4vector]);
+            if !node.read().await.tombstone {
+                node.write().await.value = value;
             }
             self.apply_buffered_operations();
         }
@@ -469,17 +482,17 @@ pub mod rga {
         ///
         /// # Returns
         /// A vector of strings representing the current sequence.
-        pub fn read(&self) -> Vec<String> {
+        pub async fn read(&self) -> Vec<String> {
             let mut result: Vec<String> = Vec::new();
             let mut current: Option<S4Vector> = self.head;
 
             while let Some(current_s4) = current {
                 if let Some(node) = self.hash_map.get(&current_s4) {
-                    if !node.borrow().tombstone {
-                        result.push(node.borrow().value.clone());
+                    if !node.read().await.tombstone {
+                        result.push(node.read().await.value.clone());
                     }
 
-                    current = node.borrow().right;
+                    current = node.read().await.right;
                 } else {
                     break;
                 }
@@ -522,49 +535,55 @@ pub mod rga {
 
     #[cfg(test)]
     mod tests {
+        use rocket::tokio;
+
         use super::*;
 
-        #[test]
-        fn test_insert() {
+        #[tokio::test]
+        async fn test_insert() {
             let mut rga = RGA::new(1, 1);
-            let result = rga.local_insert("A".to_string(), None, None);
+            let result = rga.local_insert("A".to_string(), None, None).await;
             assert!(result.is_ok());
             assert_eq!(rga.hash_map.len(), 1);
         }
 
-        #[test]
-        fn test_delete() {
+        #[tokio::test]
+        async fn test_delete() {
             let mut rga = RGA::new(1, 1);
             let s4 = rga
                 .local_insert("A".to_string(), None, None)
+                .await
                 .unwrap()
                 .s4vector;
-            let result = rga.local_delete(s4.clone());
+            let result = rga.local_delete(s4.clone()).await;
             assert!(result.is_ok());
-            assert!(rga.hash_map[&s4].borrow().tombstone);
+            assert!(rga.hash_map[&s4].read().await.tombstone);
         }
 
-        #[test]
-        fn test_update() {
+        #[tokio::test]
+        async fn test_update() {
             let mut rga = RGA::new(1, 1);
             let s4 = rga
                 .local_insert("A".to_string(), None, None)
+                .await
                 .unwrap()
                 .s4vector;
-            let result = rga.local_update(s4.clone(), "B".to_string());
+            let result = rga.local_update(s4.clone(), "B".to_string()).await;
             assert!(result.is_ok());
-            assert_eq!(rga.hash_map[&s4].borrow().value, "B".to_string());
+            assert_eq!(rga.hash_map[&s4].read().await.value, "B".to_string());
         }
 
-        #[test]
-        fn test_read() {
+        #[tokio::test]
+        async fn test_read() {
             let mut rga = RGA::new(1, 1);
-            rga.local_insert("A".to_string(), None, None).unwrap();
+            rga.local_insert("A".to_string(), None, None).await.unwrap();
             let s4 = rga.head.unwrap();
-            rga.local_insert("B".to_string(), Some(s4), None).unwrap();
-            rga.local_delete(s4).unwrap();
+            rga.local_insert("B".to_string(), Some(s4), None)
+                .await
+                .unwrap();
+            rga.local_delete(s4).await.unwrap();
 
-            let result = rga.read();
+            let result = rga.read().await;
             assert_eq!(result, vec!["B".to_string()]);
         }
     }
