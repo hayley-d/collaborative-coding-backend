@@ -1,4 +1,4 @@
-use miette::{miette, Diagnostic, Result};
+use miette::Diagnostic;
 use thiserror::Error;
 
 #[derive(Debug, Error, Diagnostic)]

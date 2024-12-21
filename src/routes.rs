@@ -21,10 +21,13 @@ pub struct OperationRequest {
 /// Handles fontend-initiated insert operation
 #[post("/insert", data = "<request>")]
 pub async fn insert(request: Json<OperationRequest>, rga: &rocket::State<SharedRGA>) -> String {
-    let mut rga = rga.lock().await.unwrap();
+    let mut rga = rga.lock().await;
 
     if let Some(value) = &request.value {
-        match rga.local_insert(value, request.left, request.right) {
+        match rga
+            .local_insert(value.to_string(), request.left, request.right)
+            .await
+        {
             Ok(_) => "Insert successful".to_string(),
             Err(err) => format!("Insert Failed {}", err),
         }
@@ -36,10 +39,13 @@ pub async fn insert(request: Json<OperationRequest>, rga: &rocket::State<SharedR
 /// Handles fontend-initiated update operation
 #[post("/update", data = "<request>")]
 pub async fn update(request: Json<OperationRequest>, rga: &rocket::State<SharedRGA>) -> String {
-    let mut rga = rga.lock().await.unwrap();
+    let mut rga = rga.lock().await;
 
     if let Some(value) = &request.value {
-        match rga.local_update(request.s4vector.unwrap(), value) {
+        match rga
+            .local_update(request.s4vector.unwrap(), value.to_string())
+            .await
+        {
             Ok(_) => "Update successful".to_string(),
             Err(err) => format!("Update failed: {}", err),
         }
@@ -51,15 +57,11 @@ pub async fn update(request: Json<OperationRequest>, rga: &rocket::State<SharedR
 /// Handles fontend-initiated delete operation
 #[post("/delete", data = "<request>")]
 pub async fn delete(request: Json<OperationRequest>, rga: &rocket::State<SharedRGA>) -> String {
-    let mut rga = rga.lock().await.unwrap();
+    let mut rga = rga.lock().await;
 
-    if let Some(value) = &request.value {
-        match rga.local_delete(request.s4vector.unwrap()) {
-            Ok(_) => "Delete successful".to_string(),
-            Err(err) => format!("Delete failed: {}", err),
-        }
-    } else {
-        return "Delete failed: Missing value".to_string();
+    match rga.local_delete(request.s4vector.unwrap()).await {
+        Ok(_) => "Delete successful".to_string(),
+        Err(err) => format!("Delete failed: {}", err),
     }
 }
 
@@ -69,18 +71,17 @@ pub async fn remote_insert(
     request: Json<OperationRequest>,
     rga: &rocket::State<SharedRGA>,
 ) -> String {
-    let mut rga = rga.lock().await.unwrap();
+    let mut rga = rga.lock().await;
 
     if let Some(value) = &request.value {
-        match rga.remote_insert(
-            value,
+        rga.remote_insert(
+            value.to_string(),
             request.s4vector.unwrap(),
             request.left,
             request.right,
-        ) {
-            Ok(_) => "Insert successful".to_string(),
-            Err(err) => format!("Insert Failed {}", err),
-        }
+        )
+        .await;
+        return "Remote insert success".to_string();
     } else {
         "Insert failed: Missing value".to_string()
     }
@@ -92,13 +93,12 @@ pub async fn remote_update(
     request: Json<OperationRequest>,
     rga: &rocket::State<SharedRGA>,
 ) -> String {
-    let mut rga = rga.lock().await.unwrap();
+    let mut rga = rga.lock().await;
 
     if let Some(value) = &request.value {
-        match rga.remote_update(request.s4vector.unwrap(), value) {
-            Ok(_) => "Update successful".to_string(),
-            Err(err) => format!("Update failed: {}", err),
-        }
+        rga.remote_update(request.s4vector.unwrap(), value.to_string())
+            .await;
+        return "Update successful".to_string();
     } else {
         return "Update failed: Missing value".to_string();
     }
@@ -110,24 +110,18 @@ pub async fn remote_delete(
     request: Json<OperationRequest>,
     rga: &rocket::State<SharedRGA>,
 ) -> String {
-    let mut rga = rga.lock().await.unwrap();
+    let mut rga = rga.lock().await;
 
-    if let Some(value) = &request.value {
-        match rga.remote_delete(request.s4vector.unwrap()) {
-            Ok(_) => "Delete successful".to_string(),
-            Err(err) => format!("Delete failed: {}", err),
-        }
-    } else {
-        return "Delete failed: Missing value".to_string();
-    }
+    rga.remote_delete(request.s4vector.unwrap()).await;
+    return "Delete successful".to_string();
 }
 
 /// Returns the current state of the RGA as a JSON object for frontend use.
 #[get("/state")]
 pub async fn state(rga: &rocket::State<SharedRGA>) -> Json<Vec<String>> {
-    let rga = rga.lock().await.unwrap();
+    let rga = rga.lock().await;
 
-    return Json(rga.read());
+    return Json(rga.read().await);
 }
 
 /*async fn broadcast_operation(

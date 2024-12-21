@@ -330,12 +330,15 @@ pub mod rga {
             self.hash_map
                 .insert(node.read().await.s4vector, Arc::clone(&node));
 
-            self.apply_buffered_operations();
+            self.apply_buffered_operations().await;
 
-            let (s4vector, value, left, right) = match node.read().await {
-                node => (node.s4vector, node.value.clone(), node.left, node.right),
-                _ => unreachable!(),
-            };
+            let node_guard = node.read().await;
+            let (s4vector, value, left, right) = (
+                node_guard.s4vector,
+                node_guard.value.clone(),
+                node_guard.left,
+                node_guard.right,
+            );
 
             return Ok(BroadcastOperation {
                 operation: OperationType::Insert,
@@ -373,12 +376,10 @@ pub mod rga {
 
             node.write().await.tombstone = true;
 
-            self.apply_buffered_operations();
+            self.apply_buffered_operations().await;
 
-            let (s4vector, left, right) = match node.read().await {
-                node => (node.s4vector, node.left, node.right),
-                _ => unreachable!(),
-            };
+            let node_guard = node.read().await;
+            let (s4vector, left, right) = (node_guard.s4vector, node_guard.left, node_guard.right);
 
             return Ok(BroadcastOperation {
                 operation: OperationType::Delete,
@@ -417,11 +418,14 @@ pub mod rga {
             if !node.read().await.tombstone {
                 node.write().await.value = value;
             }
-            self.apply_buffered_operations();
-            let (value, left, right) = match node.read().await {
-                node => (node.value.clone(), node.left, node.right),
-                _ => unreachable!(),
-            };
+            self.apply_buffered_operations().await;
+            let node_guard = node.read().await;
+            let (s4vector, value, left, right) = (
+                node_guard.s4vector,
+                node_guard.value.clone(),
+                node_guard.left,
+                node_guard.right,
+            );
             return Ok(BroadcastOperation {
                 operation: OperationType::Update,
                 s4vector,
@@ -451,7 +455,9 @@ pub mod rga {
 
             self.hash_map
                 .insert(node.read().await.s4vector, Arc::clone(&node));
-            self.apply_buffered_operations();
+            let _ = Box::pin(async move {
+                self.apply_buffered_operations().await;
+            });
         }
 
         /// Remote operation to remove an ekement given the UID
@@ -465,7 +471,9 @@ pub mod rga {
                 }
             };
             node.write().await.tombstone = true;
-            self.apply_buffered_operations();
+            let _ = Box::pin(async move {
+                self.apply_buffered_operations().await;
+            });
         }
 
         /// Remote operation to update an element
@@ -475,7 +483,9 @@ pub mod rga {
             if !node.read().await.tombstone {
                 node.write().await.value = value;
             }
-            self.apply_buffered_operations();
+            let _ = Box::pin(async move {
+                self.apply_buffered_operations().await;
+            });
         }
 
         /// Reads the current state of the RGA, skipping tombstoned nodes.
@@ -500,36 +510,41 @@ pub mod rga {
             return result;
         }
 
-        pub fn apply_buffered_operations(&mut self) {
-            let mut buffer: VecDeque<Operation> = self.buffer.clone();
+        pub async fn apply_buffered_operations(&mut self) {
+            let mut new_buffer: VecDeque<Operation> = VecDeque::new();
 
-            buffer.retain(|op| {
-                if let Some(left) = &op.left.clone() {
+            for op in self.buffer.clone() {
+                if let Some(left) = &op.left {
                     if !self.hash_map.contains_key(left) {
-                        return true;
+                        new_buffer.push_back(op);
+                        continue;
                     }
                 }
 
                 match op.operation {
                     OperationType::Insert => {
                         if let Some(value) = &op.value {
-                            self.remote_insert(value.clone(), op.s4vector, op.left, op.right);
+                            self.remote_insert(
+                                value.clone(),
+                                op.s4vector,
+                                op.left.clone(),
+                                op.right.clone(),
+                            )
+                            .await;
                         }
                     }
                     OperationType::Update => {
                         if let Some(value) = &op.value {
-                            self.remote_update(op.s4vector, value.to_string());
+                            self.remote_update(op.s4vector, value.to_string()).await;
                         }
                     }
                     OperationType::Delete => {
-                        self.remote_delete(op.s4vector);
+                        self.remote_delete(op.s4vector).await;
                     }
                 }
+            }
 
-                false
-            });
-
-            self.buffer = buffer;
+            self.buffer = new_buffer;
         }
     }
 
