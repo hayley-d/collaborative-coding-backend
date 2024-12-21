@@ -64,6 +64,10 @@ Users can request previous versions, which the backend fetches from DynamoDB.
 ### Rocket Framework
 I chose to work with rocket as it works with a fully asynchronous core and all asynchronous tasks are multiplexed on a configurable number of worker threads.
 
+## Overall TODO
+- RESTful API to handle document updates and synchronization
+- Database setup for persistence of documents and CRDT states.
+- Infrastructure: AWS lambda, API gateway and S3
 
 ## TODO
 - Define functionality to manage and discover replicas in the network
@@ -71,3 +75,26 @@ I chose to work with rocket as it works with a fully asynchronous core and all a
 - Ensure all API routes handle edge cases (add unit tests and integration tests)
 - Integrate a logging crate to debug and monitor operaions
 - Add lambda calls to aws for database entries
+
+- Add API Routes:
+1. POST /documents: Insert a new row into the documents table
+2. GET /documents/{id} : fetches the current state of the document from the local CRDT
+3. POST /sync : synchronizes the local CRDT state with AWS DB
+4. GET /metadata : returns the metadata:  
+* last update timestamp
+* list of active replicas
+* current CRDT state hash
+5. POST /aurora/write_operatin: add an operation to the operations table
+6. GET /aurora/fetch_operations: get all operations for a document from the Aurora database
+7. POST /aurora/broadcast_ack : Send to the replica that performed the local operaton to confirm database acknowledgement
+8. GET /replica_health : Check health: uptime,CRDT size,number of buffered ops
+9. POST /bootstrap: initializes a replica with the current document data and metadata
+
+- DB setup
+use MySQL version of Aurora and confugure a connection pooler to handle concurrent connections.
+use sqlx (crate) for asynchronous database queries (or tokio-postgres for postgres)
+use AWS api gateway to deliver real-time updates to clients.
+
+- communication
+use AWS SNS/AWS SQS it acts as a central hub to broadcast messages and delivers to other replicas via HTTP or lambda
+
