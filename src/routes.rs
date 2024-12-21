@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::rga::rga::RGA;
-use crate::S4Vector;
+use crate::{ApiError, S4Vector};
 use rocket::serde::json::Json;
 use rocket::tokio::sync::Mutex;
 use rocket::{get, post};
@@ -20,49 +20,64 @@ pub struct OperationRequest {
 
 /// Handles fontend-initiated insert operation
 #[post("/insert", data = "<request>")]
-pub async fn insert(request: Json<OperationRequest>, rga: &rocket::State<SharedRGA>) -> String {
+pub async fn insert(
+    request: Json<OperationRequest>,
+    rga: &rocket::State<SharedRGA>,
+) -> Result<(), ApiError> {
     let mut rga = rga.lock().await;
 
     if let Some(value) = &request.value {
-        match rga
-            .local_insert(value.to_string(), request.left, request.right)
+        rga.local_insert(value.clone(), request.left, request.right)
             .await
-        {
-            Ok(_) => "Insert successful".to_string(),
-            Err(err) => format!("Insert Failed {}", err),
-        }
+            .map_err(|_| ApiError::DependencyMissing)?;
+        Ok(())
     } else {
-        "Insert failed: Missing value".to_string()
+        Err(ApiError::InvalidOperation(
+            "Value is required for insert".to_string(),
+        ))
     }
 }
 
 /// Handles fontend-initiated update operation
 #[post("/update", data = "<request>")]
-pub async fn update(request: Json<OperationRequest>, rga: &rocket::State<SharedRGA>) -> String {
+pub async fn update(
+    request: Json<OperationRequest>,
+    rga: &rocket::State<SharedRGA>,
+) -> Result<(), ApiError> {
     let mut rga = rga.lock().await;
 
     if let Some(value) = &request.value {
-        match rga
-            .local_update(request.s4vector.unwrap(), value.to_string())
-            .await
-        {
-            Ok(_) => "Update successful".to_string(),
-            Err(err) => format!("Update failed: {}", err),
-        }
+        rga.local_update(
+            request
+                .left
+                .ok_or_else(|| ApiError::InvalidOperation("Left neighbor required".into()))?,
+            value.clone(),
+        )
+        .await
+        .map_err(|_| ApiError::DependencyMissing)?;
+        Ok(())
     } else {
-        return "Update failed: Missing value".to_string();
+        Err(ApiError::InvalidOperation(
+            "Value is required for update".to_string(),
+        ))
     }
 }
 
 /// Handles fontend-initiated delete operation
 #[post("/delete", data = "<request>")]
-pub async fn delete(request: Json<OperationRequest>, rga: &rocket::State<SharedRGA>) -> String {
+pub async fn delete(
+    request: Json<OperationRequest>,
+    rga: &rocket::State<SharedRGA>,
+) -> Result<(), ApiError> {
     let mut rga = rga.lock().await;
-
-    match rga.local_delete(request.s4vector.unwrap()).await {
-        Ok(_) => "Delete successful".to_string(),
-        Err(err) => format!("Delete failed: {}", err),
-    }
+    rga.local_delete(
+        request
+            .left
+            .ok_or_else(|| ApiError::InvalidOperation("Left neighbor required".into()))?,
+    )
+    .await
+    .map_err(|_| ApiError::DependencyMissing)?;
+    Ok(())
 }
 
 /// Applies an insert opperation received from another replica
@@ -70,7 +85,7 @@ pub async fn delete(request: Json<OperationRequest>, rga: &rocket::State<SharedR
 pub async fn remote_insert(
     request: Json<OperationRequest>,
     rga: &rocket::State<SharedRGA>,
-) -> String {
+) -> Result<(), ApiError> {
     let mut rga = rga.lock().await;
 
     if let Some(value) = &request.value {
@@ -81,9 +96,11 @@ pub async fn remote_insert(
             request.right,
         )
         .await;
-        return "Remote insert success".to_string();
+        return Ok(());
     } else {
-        "Insert failed: Missing value".to_string()
+        Err(ApiError::InvalidOperation(
+            "Value is required for insert".to_string(),
+        ))
     }
 }
 
@@ -92,15 +109,17 @@ pub async fn remote_insert(
 pub async fn remote_update(
     request: Json<OperationRequest>,
     rga: &rocket::State<SharedRGA>,
-) -> String {
+) -> Result<(), ApiError> {
     let mut rga = rga.lock().await;
 
     if let Some(value) = &request.value {
         rga.remote_update(request.s4vector.unwrap(), value.to_string())
             .await;
-        return "Update successful".to_string();
+        return Ok(());
     } else {
-        return "Update failed: Missing value".to_string();
+        Err(ApiError::InvalidOperation(
+            "Value is required for insert".to_string(),
+        ))
     }
 }
 
@@ -109,19 +128,19 @@ pub async fn remote_update(
 pub async fn remote_delete(
     request: Json<OperationRequest>,
     rga: &rocket::State<SharedRGA>,
-) -> String {
+) -> Result<(), ApiError> {
     let mut rga = rga.lock().await;
 
     rga.remote_delete(request.s4vector.unwrap()).await;
-    return "Delete successful".to_string();
+    return Ok(());
 }
 
 /// Returns the current state of the RGA as a JSON object for frontend use.
 #[get("/state")]
-pub async fn state(rga: &rocket::State<SharedRGA>) -> Json<Vec<String>> {
+pub async fn state(rga: &rocket::State<SharedRGA>) -> Result<Json<Vec<String>>, ApiError> {
     let rga = rga.lock().await;
 
-    return Json(rga.read().await);
+    return Ok(Json(rga.read().await));
 }
 
 /*async fn broadcast_operation(
