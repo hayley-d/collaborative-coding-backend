@@ -64,3 +64,10 @@ Users can request previous versions, which the backend fetches from DynamoDB.
 ### Rocket Framework
 I chose to work with rocket as it works with a fully asynchronous core and all asynchronous tasks are multiplexed on a configurable number of worker threads.
 
+
+## TODO
+- Define functionality to manage and discover replicas in the network
+- Secure routes to prevent unauthorized access to sensitive information
+- Ensure all API routes handle edge cases (add unit tests and integration tests)
+- Integrate a logging crate to debug and monitor operaions
+- Add lambda calls to aws for database entries
