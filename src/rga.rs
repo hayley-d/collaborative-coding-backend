@@ -65,10 +65,11 @@ pub mod rga {
 
     /// Represents an operation in the RGA.
     #[derive(Debug, Clone)]
-    struct Operation {
+    pub struct Operation {
         operation: OperationType,
         s4vector: S4Vector,
         value: Option<String>, //Optional for deletes
+        tombstone: bool,
         left: Option<S4Vector>,
         right: Option<S4Vector>,
     }
@@ -131,6 +132,22 @@ pub mod rga {
                 right,
             };
         }
+
+        pub fn create_from_existing(
+            s4: S4Vector,
+            value: String,
+            tombstone: bool,
+            left: Option<S4Vector>,
+            right: Option<S4Vector>,
+        ) -> Self {
+            return Node {
+                value,
+                s4vector: s4,
+                tombstone,
+                left,
+                right,
+            };
+        }
     }
 
     impl std::hash::Hash for Node {
@@ -184,6 +201,36 @@ pub mod rga {
                 site_id,
                 local_sequence: 0,
             };
+        }
+
+        /// Creates a RGA from a vector of Operations.
+        /// Used when fetching an esisting document.
+        /// # Parameters
+        /// A Sorted vector of operations from the DB.
+        ///
+        /// # Returns
+        /// A new instance of `RGA`.
+        pub fn create_from(operations: Vec<Operation>, session_id: u64, site_id: u64) -> Self {
+            let mut rga: RGA = RGA::new(session_id, site_id);
+
+            let mut flag: bool = false;
+
+            for op in operations {
+                if !flag {
+                    rga.head = Some(op.s4vector);
+                    flag = true;
+                }
+                let value = match op.value {
+                    Some(v) => v,
+                    None => String::new(),
+                };
+                let node: Node =
+                    Node::create_from_existing(op.s4vector, value, op.tombstone, op.left, op.right);
+                rga.hash_map
+                    .insert(op.s4vector, Arc::new(RwLock::new(node)));
+                rga.local_sequence += 1;
+            }
+            return rga;
         }
 
         async fn insert_into_list(&mut self, node: Arc<RwLock<Node>>) -> Arc<RwLock<Node>> {
