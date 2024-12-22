@@ -304,6 +304,7 @@ pub mod rga {
                             operation: OperationType::Insert,
                             s4vector: new_s4,
                             value: Some(value),
+                            tombstone: false,
                             left,
                             right,
                         });
@@ -327,6 +328,7 @@ pub mod rga {
                             operation: OperationType::Insert,
                             s4vector: new_s4,
                             value: Some(value),
+                            tombstone: false,
                             left,
                             right,
                         });
@@ -350,6 +352,7 @@ pub mod rga {
                             operation: OperationType::Insert,
                             s4vector: new_s4,
                             value: Some(value),
+                            tombstone: false,
                             left,
                             right,
                         });
@@ -414,6 +417,7 @@ pub mod rga {
                         operation: OperationType::Delete,
                         s4vector,
                         value: None,
+                        tombstone: false,
                         left: None,
                         right: None,
                     });
@@ -456,6 +460,7 @@ pub mod rga {
                         operation: OperationType::Update,
                         s4vector,
                         value: Some(value),
+                        tombstone: false,
                         left: None,
                         right: None,
                     });
@@ -556,6 +561,8 @@ pub mod rga {
             }
             return result;
         }
+
+        pub fn get_all_operations(&self) -> Vec<Operation> {}
 
         pub async fn apply_buffered_operations(&mut self) {
             let mut new_buffer: VecDeque<Operation> = VecDeque::new();

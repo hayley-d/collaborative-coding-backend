@@ -18,6 +18,10 @@ pub enum ApiError {
     #[error("Failed to process request: {0}")]
     #[diagnostic(code(api::request_failed))]
     RequestFailed(String),
+
+    #[error("Database Error {0}")]
+    #[diagnostic(code(api::database_error))]
+    DatabaseError(String),
 }
 
 impl<'r> Responder<'r, 'static> for ApiError {
@@ -27,6 +31,7 @@ impl<'r> Responder<'r, 'static> for ApiError {
             ApiError::DependencyMissing => Status::Ok,
             ApiError::InvalidOperation(_) => Status::BadRequest,
             ApiError::RequestFailed(_) => Status::InternalServerError,
+            ApiError::DatabaseError(_) => Status::InternalServerError,
         };
 
         return Response::build()

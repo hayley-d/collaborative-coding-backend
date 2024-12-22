@@ -1,17 +1,17 @@
-use std::sync::Arc;
-
 use nimble::rga::rga::RGA;
-use nimble::routes::{delete, insert, state, update};
+use nimble::routes::*;
 use nimble::{remote_delete, remote_insert, remote_update};
 use rocket::tokio::sync::Mutex;
+use std::collections::HashMap;
+use std::sync::Arc;
 
 #[macro_use]
 extern crate rocket;
 
 #[launch]
 fn rocket() -> _ {
-    let rga = Arc::new(Mutex::new(RGA::new(1, 1)));
-    rocket::build().manage(rga).mount(
+    let rgas: Arc<Mutex<HashMap<String, RGA>>> = Arc::new(Mutex::new(HashMap::new()));
+    rocket::build().manage(rgas).mount(
         "/",
         routes![
             insert,

@@ -1,21 +1,65 @@
-use std::sync::Arc;
-
 use crate::rga::rga::RGA;
-use crate::{ApiError, S4Vector};
+use crate::{db, ApiError, S4Vector};
 use rocket::serde::json::Json;
 use rocket::tokio::sync::Mutex;
 use rocket::{get, post};
 use serde::{Deserialize, Serialize};
+/// This module implements routes for managing collaborative documents
+/// using RGAs (Replicated Growable Arrays) in a distributed system.
+/// It includes functionality to fetch documents, synchronize with the
+/// database, manage CRDT operations, and monitor replica health.
+use std::collections::HashMap;
+use std::sync::Arc;
 
-type SharedRGA = Arc<Mutex<RGA>>;
+/// Shared state type: Maps document IDs to their corresponding RGA instances.
+type SharedRGAs = Arc<Mutex<HashMap<String, RGA>>>;
 
+/// Represents the request body for operations.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OperationRequest {
     operation: String,
     value: Option<String>,
     s4vector: Option<S4Vector>,
+    tombstone: bool,
     left: Option<S4Vector>,
     right: Option<S4Vector>,
+}
+
+/// Represents the health response structure.
+#[derive(Debug, Serialize, Deserialize)]
+struct HealthResponse {
+    uptime: String,
+    buffered_operations: usize,
+    active_sessions: usize,
+}
+
+/// Fetch a document from the Aurora DB and initialize an RGA.
+#[get("/document/<id>")]
+async fn fetch_document(id: String, rgas: &rocket::State<SharedRGAs>) -> Result<(), ApiError> {
+    let mut rgas = rgas.lock().await;
+    if rgas.contains_key(&id) {
+        return Ok(());
+    }
+
+    let operations = db::fetch_document(&id).map_err(|e| ApiError::DatabaseError(e))?;
+    let rga = RGA::create_from(operations, 1, 1); // Session ID and Site ID placeholders.
+    rgas.insert(id.clone(), rga);
+
+    return Ok(());
+}
+
+/// Synchronize the in-memory RGA with the Aurora DB version.
+#[post("/sync/<id>")]
+async fn sync_document(id: String, rgas: &rocket::State<SharedRGAs>) -> Result<(), ApiError> {
+    let mut rgas = rgas.lock().await;
+    let rga = rgas
+        .get(&id)
+        .ok_or_else(|| ApiError::RequestFailed(String::from("Document does not exist")))?;
+
+    let operations = rga.get_all_operations();
+    db::sync_document(&id, operations).map_err(|e| ApiError::DatabaseError(e))?;
+
+    return Ok(());
 }
 
 /// Handles fontend-initiated insert operation
