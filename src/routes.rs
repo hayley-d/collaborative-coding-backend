@@ -1,5 +1,6 @@
+use crate::db;
 use crate::rga::rga::RGA;
-use crate::{db, ApiError, S4Vector};
+use crate::{ApiError, S4Vector};
 use rocket::serde::json::Json;
 use rocket::tokio::sync::Mutex;
 use rocket::{get, post};
@@ -13,6 +14,7 @@ use std::sync::Arc;
 
 /// Shared state type: Maps document IDs to their corresponding RGA instances.
 type SharedRGAs = Arc<Mutex<HashMap<String, RGA>>>;
+type SharedDB = Arc<Mutex<db::Database>>;
 
 /// Represents the request body for operations.
 #[derive(Debug, Serialize, Deserialize)]
@@ -29,46 +31,45 @@ pub struct OperationRequest {
 #[derive(Debug, Serialize, Deserialize)]
 struct HealthResponse {
     uptime: String,
-    buffered_operations: usize,
+    buffered_operations: u64,
     active_sessions: usize,
 }
 
 /// Fetch a document from the Aurora DB and initialize an RGA.
 #[get("/document/<id>")]
-async fn fetch_document(id: String, rgas: &rocket::State<SharedRGAs>) -> Result<(), ApiError> {
+async fn fetch_document(
+    id: String,
+    rgas: &rocket::State<SharedRGAs>,
+    db: &rocket::State<SharedDB>,
+) -> Result<(), ApiError> {
     let mut rgas = rgas.lock().await;
     if rgas.contains_key(&id) {
         return Ok(());
     }
 
-    let operations = db::fetch_document(&id).map_err(|e| ApiError::DatabaseError(e))?;
+    let operations = db
+        .lock()
+        .await
+        .fetch_document(&id)
+        .map_err(|e| ApiError::DatabaseError(e))?;
     let rga = RGA::create_from(operations, 1, 1); // Session ID and Site ID placeholders.
     rgas.insert(id.clone(), rga);
 
     return Ok(());
 }
 
-/// Synchronize the in-memory RGA with the Aurora DB version.
-#[post("/sync/<id>")]
-async fn sync_document(id: String, rgas: &rocket::State<SharedRGAs>) -> Result<(), ApiError> {
-    let mut rgas = rgas.lock().await;
-    let rga = rgas
-        .get(&id)
-        .ok_or_else(|| ApiError::RequestFailed(String::from("Document does not exist")))?;
-
-    let operations = rga.get_all_operations();
-    db::sync_document(&id, operations).map_err(|e| ApiError::DatabaseError(e))?;
-
-    return Ok(());
-}
-
-/// Handles fontend-initiated insert operation
-#[post("/insert", data = "<request>")]
+/// Insert a value into the RGA of a specific document.
+#[post("/document/<id>/insert", data = "<request>")]
 pub async fn insert(
+    id: String,
     request: Json<OperationRequest>,
-    rga: &rocket::State<SharedRGA>,
+    rgas: &rocket::State<SharedRGAs>,
 ) -> Result<(), ApiError> {
-    let mut rga = rga.lock().await;
+    let mut rgas = rgas.lock().await;
+    let rga: &mut RGA = match rgas.get_mut(&id) {
+        Some(r) => r,
+        None => return Err(ApiError::RequestFailed(String::from("Document not found"))),
+    };
 
     if let Some(value) = &request.value {
         rga.local_insert(value.clone(), request.left, request.right)
@@ -82,13 +83,17 @@ pub async fn insert(
     }
 }
 
-/// Handles fontend-initiated update operation
-#[post("/update", data = "<request>")]
+/// Update a value in the RGA of a specific document.
+#[post("/document/<id>/update", data = "<request>")]
 pub async fn update(
+    id: String,
     request: Json<OperationRequest>,
-    rga: &rocket::State<SharedRGA>,
+    rgas: &rocket::State<SharedRGAs>,
 ) -> Result<(), ApiError> {
-    let mut rga = rga.lock().await;
+    let mut rgas = rgas.lock().await;
+    let rga = rgas
+        .get_mut(&id)
+        .ok_or_else(|| ApiError::RequestFailed(String::from("Document not found")))?;
 
     if let Some(value) = &request.value {
         rga.local_update(
@@ -107,13 +112,18 @@ pub async fn update(
     }
 }
 
-/// Handles fontend-initiated delete operation
-#[post("/delete", data = "<request>")]
+/// Delete a value from the RGA of a specific document.
+#[post("/document/<id>/delete", data = "<request>")]
 pub async fn delete(
+    id: String,
     request: Json<OperationRequest>,
-    rga: &rocket::State<SharedRGA>,
+    rgas: &rocket::State<SharedRGAs>,
 ) -> Result<(), ApiError> {
-    let mut rga = rga.lock().await;
+    let mut rgas = rgas.lock().await;
+    let rga = rgas
+        .get_mut(&id)
+        .ok_or_else(|| ApiError::RequestFailed(String::from("Document not found")))?;
+
     rga.local_delete(
         request
             .left
@@ -125,12 +135,16 @@ pub async fn delete(
 }
 
 /// Applies an insert opperation received from another replica
-#[post("/remote/insert", data = "<request>")]
+#[post("/document/<id>/remote/insert", data = "<request>")]
 pub async fn remote_insert(
+    id: String,
     request: Json<OperationRequest>,
-    rga: &rocket::State<SharedRGA>,
+    rgas: &rocket::State<SharedRGAs>,
 ) -> Result<(), ApiError> {
-    let mut rga = rga.lock().await;
+    let mut rgas = rgas.lock().await;
+    let rga = rgas
+        .get_mut(&id)
+        .ok_or_else(|| ApiError::RequestFailed(String::from("Document not found")))?;
 
     if let Some(value) = &request.value {
         rga.remote_insert(
@@ -149,12 +163,16 @@ pub async fn remote_insert(
 }
 
 /// Applies an update opperation received from another replica
-#[post("/remote/update", data = "<request>")]
+#[post("/document/<id>/remote/update", data = "<request>")]
 pub async fn remote_update(
+    id: String,
     request: Json<OperationRequest>,
-    rga: &rocket::State<SharedRGA>,
+    rgas: &rocket::State<SharedRGAs>,
 ) -> Result<(), ApiError> {
-    let mut rga = rga.lock().await;
+    let mut rgas = rgas.lock().await;
+    let rga = rgas
+        .get_mut(&id)
+        .ok_or_else(|| ApiError::RequestFailed(String::from("Document not found")))?;
 
     if let Some(value) = &request.value {
         rga.remote_update(request.s4vector.unwrap(), value.to_string())
@@ -168,21 +186,31 @@ pub async fn remote_update(
 }
 
 /// Applies a delete opperation received from another replica
-#[post("/remote/delete", data = "<request>")]
+#[post("/document/<id>/remote/delete", data = "<request>")]
 pub async fn remote_delete(
+    id: String,
     request: Json<OperationRequest>,
-    rga: &rocket::State<SharedRGA>,
+    rgas: &rocket::State<SharedRGAs>,
 ) -> Result<(), ApiError> {
-    let mut rga = rga.lock().await;
+    let mut rgas = rgas.lock().await;
+    let rga = rgas
+        .get_mut(&id)
+        .ok_or_else(|| ApiError::RequestFailed(String::from("Document not found")))?;
 
     rga.remote_delete(request.s4vector.unwrap()).await;
     return Ok(());
 }
 
 /// Returns the current state of the RGA as a JSON object for frontend use.
-#[get("/state")]
-pub async fn state(rga: &rocket::State<SharedRGA>) -> Result<Json<Vec<String>>, ApiError> {
-    let rga = rga.lock().await;
+#[get("/document/<id>/state")]
+pub async fn state(
+    id: String,
+    rgas: &rocket::State<SharedRGAs>,
+) -> Result<Json<Vec<String>>, ApiError> {
+    let mut rgas = rgas.lock().await;
+    let rga = rgas
+        .get_mut(&id)
+        .ok_or_else(|| ApiError::RequestFailed(String::from("Document not found")))?;
 
     return Ok(Json(rga.read().await));
 }

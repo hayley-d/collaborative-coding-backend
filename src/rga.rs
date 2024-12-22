@@ -79,17 +79,17 @@ pub mod rga {
     #[derive(Debug)]
     pub struct RGA {
         /// The head of the linked list.
-        head: Option<S4Vector>,
+        pub head: Option<S4Vector>,
         /// Maps `S4Vector` identifiers to `Node` instances.
-        hash_map: HashMap<S4Vector, Arc<RwLock<Node>>>,
+        pub hash_map: HashMap<S4Vector, Arc<RwLock<Node>>>,
         /// A Buffer for out-of-order operations.
-        buffer: VecDeque<Operation>,
+        pub buffer: VecDeque<Operation>,
         /// The current session ID.
-        session_id: u64,
+        pub session_id: u64,
         /// The site ID for the current replica.
-        site_id: u64,
+        pub site_id: u64,
         /// The local logical clock.
-        local_sequence: u64,
+        pub local_sequence: u64,
     }
 
     #[derive(Debug, thiserror::Error)]
@@ -561,8 +561,6 @@ pub mod rga {
             }
             return result;
         }
-
-        pub fn get_all_operations(&self) -> Vec<Operation> {}
 
         pub async fn apply_buffered_operations(&mut self) {
             let mut new_buffer: VecDeque<Operation> = VecDeque::new();
