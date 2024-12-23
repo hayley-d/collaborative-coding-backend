@@ -43,34 +43,6 @@ pub struct S4Vector {
     pub seq: u64,
 }
 
-impl ToSql for S4Vector {
-    fn to_sql(
-        &self,
-        ty: &tokio_postgres::types::Type,
-        out: &mut BytesMut,
-    ) -> Result<tokio_postgres::types::IsNull, Box<dyn std::error::Error + Sync + Send>>
-    where
-        Self: Sized,
-    {
-        todo!()
-    }
-
-    fn accepts(ty: &tokio_postgres::types::Type) -> bool
-    where
-        Self: Sized,
-    {
-        todo!()
-    }
-
-    fn to_sql_checked(
-        &self,
-        ty: &tokio_postgres::types::Type,
-        out: &mut BytesMut,
-    ) -> Result<tokio_postgres::types::IsNull, Box<dyn std::error::Error + Sync + Send>> {
-        todo!()
-    }
-}
-
 impl std::hash::Hash for S4Vector {
     /// Implements hashing for `S4Vector` to allow its use in hash-based collections.
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {

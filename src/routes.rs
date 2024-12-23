@@ -1,7 +1,7 @@
 use crate::rga::rga::RGA;
 use crate::{
-    ApiError, CreateDocumentRequest, CreateDocumentResponse, DocumentSnapshot, OperationRequest,
-    S4Vector,
+    db, ApiError, BroadcastOperation, CreateDocumentRequest, CreateDocumentResponse,
+    DocumentSnapshot, OperationRequest, S4Vector, SnsNotification,
 };
 use rocket::serde::json::Json;
 use rocket::tokio::sync::Mutex;
@@ -228,17 +228,19 @@ pub async fn insert(
         return Err(ApiError::RequestFailed(format!("Value not found")));
     };
 
-    let s4 = match rga
+    let op: BroadcastOperation = match rga
         .local_insert(value.clone(), request.left, request.right)
         .await
     {
-        Ok(obj) => obj.s4vector,
+        Ok(obj) => obj,
         Err(_) => {
             return Err(ApiError::RequestFailed(format!(
                 "Error inserting into file"
             )))
         }
     };
+
+    let s4 = op.s4vector();
 
     let operation_query = r#"INSERT INTO operations (document_id,ssn,sum,sid,seq,value,tombstone,timestamp) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)"#;
     let snapshot_query = r#"INSERT INTO document_snapshots (document_id,ssn,sum,sid,seq,value,tombstone) VALUES ($1,$2,$3,$4,$5,$6,$7)"#;
@@ -298,7 +300,49 @@ pub async fn insert(
     })?;
 
     //Broadcast to SNS
-    todo!();
+    db::send_operation(op);
+
+    return Ok(());
+}
+
+// Receives SNS notifications to perform remote operations
+#[post("/sns", format = "json", data = "<notification>")]
+pub async fn handle_sns_notification(
+    notification: Json<SnsNotification>,
+    rgas: &rocket::State<SharedRGAs>,
+) -> Result<(), ApiError> {
+    let rags = rgas.lock().await;
+
+    let operation: BroadcastOperation = serde_json::from_str(&notification.0.message)
+        .map_err(|e| ApiError::InternalServerError(format!("Failed to parse SNS message")))?;
+
+    let rga = rags.get(&operation.document_id);
+
+    let rga = match rga {
+        Some(r) => r,
+        None => {
+            return Err(ApiError::RequestFailed(format!("Document not loaded")));
+        }
+    };
+
+    match operation.operation.as_str() {
+        "Insert" => {
+            rga.remote_insert(
+                operation.value.unwrap(),
+                operation.s4vector(),
+                operation.left,
+                operation.right,
+            )
+            .await;
+        }
+        "Update" => {
+            rga.remote_update(operation.s4vector(), operation.value.unwrap())
+                .await;
+        }
+        "Delete" => {
+            rga.remote_delete(operation.s4vector()).await;
+        }
+    }
 
     return Ok(());
 }

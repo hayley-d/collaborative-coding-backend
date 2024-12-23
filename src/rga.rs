@@ -23,10 +23,10 @@ pub mod rga {
     /// let mut rga = RGA::new(1, 1);  // Create a new RGA instance.
     ///
     /// // Insert a value at the start.
-    /// let s4_a = rga.local_insert("A".to_string(), None, None).await.unwrap().s4vector;
+    /// let s4_a = rga.local_insert("A".to_string(), None, None).await.unwrap().s4vector();
     ///
     /// // Insert another value after "A".
-    /// let s4_b = rga.local_insert("B".to_string(), Some(s4_a.clone()), None).await.unwrap().s4vector;
+    /// let s4_b = rga.local_insert("B".to_string(), Some(s4_a.clone()), None).await.unwrap().s4vector();
     ///
     /// // Delete the first value.
     /// rga.local_delete(s4_a.clone()).await.unwrap();
@@ -35,7 +35,7 @@ pub mod rga {
     /// let result = rga.read().await;
     /// assert_eq!(result, vec!["B".to_string()]);
     /// ```
-    use crate::S4Vector;
+    use crate::{BroadcastOperation, S4Vector};
     use std::collections::{HashMap, VecDeque};
     use std::sync::Arc;
     #[allow(dead_code)]
@@ -96,15 +96,6 @@ pub mod rga {
     pub enum OperationError {
         #[error("Failed to perform operation, dependancies have not been met")]
         DependancyError,
-    }
-
-    #[derive(Debug)]
-    pub struct BroadcastOperation {
-        pub operation: OperationType,
-        pub s4vector: S4Vector,
-        pub value: Option<String>,
-        pub left: Option<S4Vector>,
-        pub right: Option<S4Vector>,
     }
 
     impl Node {
@@ -391,8 +382,11 @@ pub mod rga {
             );
 
             return Ok(BroadcastOperation {
-                operation: OperationType::Insert,
-                s4vector,
+                operation: "Insert".to_string(),
+                ssn: s4vector.ssn as i64,
+                sum: s4vector.sum as i64,
+                sid: s4vector.sid as i64,
+                seq: s4vector.seq as i64,
                 value: Some(value),
                 left,
                 right,
@@ -433,8 +427,11 @@ pub mod rga {
             let (s4vector, left, right) = (node_guard.s4vector, node_guard.left, node_guard.right);
 
             return Ok(BroadcastOperation {
-                operation: OperationType::Delete,
-                s4vector,
+                operation: "Delete".to_string(),
+                ssn: s4vector.ssn as i64,
+                sum: s4vector.sum as i64,
+                sid: s4vector.sid as i64,
+                seq: s4vector.seq as i64,
                 value: None,
                 left,
                 right,
@@ -479,8 +476,11 @@ pub mod rga {
                 node_guard.right,
             );
             return Ok(BroadcastOperation {
-                operation: OperationType::Update,
-                s4vector,
+                operation: "Update".to_string(),
+                ssn: s4vector.ssn as i64,
+                sum: s4vector.sum as i64,
+                sid: s4vector.sid as i64,
+                seq: s4vector.seq as i64,
                 value: Some(value),
                 left,
                 right,
@@ -621,7 +621,7 @@ pub mod rga {
                 .local_insert("A".to_string(), None, None)
                 .await
                 .unwrap()
-                .s4vector;
+                .s4vector();
             let result = rga.local_delete(s4.clone()).await;
             assert!(result.is_ok());
             assert!(rga.hash_map[&s4].read().await.tombstone);
@@ -634,7 +634,7 @@ pub mod rga {
                 .local_insert("A".to_string(), None, None)
                 .await
                 .unwrap()
-                .s4vector;
+                .s4vector();
             let result = rga.local_update(s4.clone(), "B".to_string()).await;
             assert!(result.is_ok());
             assert_eq!(rga.hash_map[&s4].read().await.value, "B".to_string());

@@ -1,4 +1,5 @@
-use crate::ApiError;
+use crate::{ApiError, BroadcastOperation};
+use aws_sdk_sns::{Client as SnsClient, Error as SnsError};
 use rocket::fairing::AdHoc;
 use rocket::tokio;
 use rocket::tokio::sync::Mutex;
@@ -56,4 +57,20 @@ pub async fn send_sns_notification(
         Ok(_) => Ok(()),
         Err(e) => Err(Box::new(e)),
     }
+}
+
+pub async fn send_operation(
+    sns_client: &SnsClient,
+    topic_arn: &str,
+    operation: &BroadcastOperation,
+) -> Result<(), SnsError> {
+    let message = serde_json::to_string(operation).expect("Failed to serialize operation");
+    sns_client
+        .publish()
+        .topic_arn(topic_arn)
+        .message(message)
+        .send()
+        .await?;
+    println!("Operation sent to other replicas");
+    return Ok(());
 }

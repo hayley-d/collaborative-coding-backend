@@ -49,14 +49,6 @@ pub struct OperationRequest {
     pub right: Option<S4Vector>,
 }
 
-/// Represents the health response structure.
-#[derive(Debug, Serialize, Deserialize)]
-struct HealthResponse {
-    uptime: String,
-    buffered_operations: u64,
-    active_sessions: usize,
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Operation {
     document_id: u64,
@@ -65,4 +57,37 @@ pub struct Operation {
     tombstone: bool,
     left: S4Vector,
     right: S4Vector,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SnsNotification {
+    pub operation: String,
+    pub message_id: String,
+    pub topic_arn: String,
+    pub message: String,
+    pub timestamp: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BroadcastOperation {
+    pub operation: String,
+    pub document_id: Uuid,
+    pub ssn: i64,
+    pub sum: i64,
+    pub sid: i64,
+    pub seq: i64,
+    pub value: Option<String>,
+    pub left: Option<S4Vector>,
+    pub right: Option<S4Vector>,
+}
+
+impl BroadcastOperation {
+    pub fn s4vector(&self) -> S4Vector {
+        return S4Vector {
+            ssn: self.ssn as u64,
+            sum: self.sum as u64,
+            sid: self.sid as u64,
+            seq: self.seq as u64,
+        };
+    }
 }
