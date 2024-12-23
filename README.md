@@ -94,3 +94,44 @@ Steps:
 tables: 
 - Operations Table: records all operations like a log
 - 
+
+## Schemas
+
+The documents table stores the metadata about each document.
+
+CREATE TABLE documents (
+    document_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    owner_id UUID NOT NULL,
+    creation_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    title TEXT
+);
+
+The operations table records all operations for the document in a log-like fashion.
+The ssn,sum,sid and seq components are used to order the operations when reconstructing the document.
+
+CREATE TABLE operations (
+    operation_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    document_id UUID NOT NULL,
+    ssn BIGINT NOT NULL,    -- Session ID
+    sum BIGINT NOT NULL,    -- Logical clock value
+    sid BIGINT NOT NULL,    -- Site ID
+    seq BIGINT NOT NULL,    -- Sequence number
+    value TEXT,             -- Value of the node (optional for delete)
+    tombstone BOOLEAN DEFAULT FALSE, -- Logical deletion
+    left_s4 JSONB,          -- JSON representation of left S4Vector
+    right_s4 JSONB,         -- JSON representation of right S4Vector
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+Example Query: 
+Query the operations table for a specific document ID.
+
+```SQL
+SELECT value
+FROM operations
+WHERE document_id = '<document_id>'
+ORDER BY ssn, sum, sid, seq;
+```
+
+

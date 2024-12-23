@@ -87,9 +87,6 @@ pub async fn initialize_db() -> Result<Client, tokio_postgres::Error> {
             eprintln!("connection error: {:?}", e);
         }
     });
-
-    // Create
-    todo!()
 }
 
 /// Fairing for managing the PostgreSQL client in rocket's state

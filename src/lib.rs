@@ -4,6 +4,9 @@ use routes::*;
 pub mod rga;
 use rga::*;
 
+pub mod json_structures;
+use json_structures::*;
+
 pub mod db;
 pub use db::*;
 
