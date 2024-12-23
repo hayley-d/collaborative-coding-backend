@@ -60,12 +60,14 @@ pub async fn send_sns_notification(
 }
 
 pub async fn send_operation(
-    sns_client: &SnsClient,
+    sns_client: Arc<Mutex<SnsClient>>,
     topic_arn: &str,
     operation: &BroadcastOperation,
 ) -> Result<(), SnsError> {
     let message = serde_json::to_string(operation).expect("Failed to serialize operation");
     sns_client
+        .lock()
+        .await
         .publish()
         .topic_arn(topic_arn)
         .message(message)

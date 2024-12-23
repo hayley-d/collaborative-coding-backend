@@ -1,4 +1,4 @@
-use aws_sdk_sns::{Client as SnsClient, Config, Region};
+use aws_sdk_sns::{config::Region, Client as SnsClient, Config};
 use chrono::{DateTime, Utc};
 use nimble::rga::rga::RGA;
 use nimble::routes::*;
@@ -24,7 +24,7 @@ async fn rocket() -> _ {
         .region(Region::new("af-south-1"))
         .load()
         .await;
-    let sns_client = Arc::new(SnsClient::new(&config));
+    let sns_client = Arc::new(Mutex::new(SnsClient::new(&config)));
 
     let replica_id: i64 = match arguments.get(2) {
         Some(id) => id.parse::<i64>().unwrap(),
@@ -35,6 +35,7 @@ async fn rocket() -> _ {
     rocket::build()
         .attatch(attatch_db())
         .manage(replica_id)
+        .manage(sns_client)
         .manage(rgas)
         .manage(start_time)
         .mount(

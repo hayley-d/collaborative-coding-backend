@@ -3,10 +3,10 @@ use crate::{
     db, ApiError, BroadcastOperation, CreateDocumentRequest, CreateDocumentResponse,
     DocumentSnapshot, OperationRequest, S4Vector, SnsNotification,
 };
+use aws_sdk_sns::Client as SnsClient;
 use rocket::serde::json::Json;
 use rocket::tokio::sync::Mutex;
 use rocket::{get, post};
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio_postgres::Client;
@@ -18,7 +18,7 @@ use uuid::Uuid;
 /// database, manage CRDT operations, and monitor replica health.
 
 /// Shared state type: Maps document IDs to their corresponding RGA instances.
-type SharedRGAs = Arc<Mutex<HashMap<String, RGA>>>;
+type SharedRGAs = Arc<Mutex<HashMap<Uuid, RGA>>>;
 
 /// Route to create a new document
 ///
@@ -151,18 +151,21 @@ async fn fetch_document(
     replica_id: &rocket::State<Arc<Mutex<i64>>>,
     db: &rocket::State<Arc<Mutex<Client>>>,
 ) -> Result<(), ApiError> {
+    let document_id: Uuid = Uuid::parse_str(&id)
+        .map_err(|_| ApiError::RequestFailed(format!("Failed to parse document id")))?;
+
     let mut rgas = rgas.lock().await;
     let client = db.lock().await;
 
     // Check if the document has already been loaded into the hashmap
-    if rgas.contains_key(&id) {
+    if rgas.contains_key(&document_id) {
         return Ok(());
     }
 
     let query =
         r#"SELECT * from document_snapshots WHERE document_id=$1 ORDER BY ssn, sum, sid,seq;"#;
 
-    let rows = client.query(query, &[&id]).await.map_err(|e| {
+    let rows = client.query(query, &[&document_id]).await.map_err(|e| {
         ApiError::DatabaseError(format!("Failed to find document in database: {:?}", e))
     })?;
 
@@ -192,7 +195,7 @@ async fn fetch_document(
         rga.remote_insert(operation.value, s4, None, None);
     }
 
-    rgas.insert(id, rga);
+    rgas.insert(document_id, rga);
 
     return Ok(());
 }
@@ -212,12 +215,17 @@ pub async fn insert(
     request: Json<OperationRequest>,
     rgas: &rocket::State<SharedRGAs>,
     db: &rocket::State<Arc<Mutex<Client>>>,
+    sns_client: &rocket::State<Arc<Mutex<SnsClient>>>,
+    topic: &rocket::State<Arc<Mutex<String>>>,
 ) -> Result<(), ApiError> {
+    let document_id: Uuid = Uuid::parse_str(&id)
+        .map_err(|_| ApiError::RequestFailed(format!("Failed to parse document id")))?;
+
     let mut rgas = rgas.lock().await;
     let mut client = db.lock().await;
 
     // Check if the document has been loaded
-    let rga: &mut RGA = match rgas.get_mut(&id) {
+    let rga: &mut RGA = match rgas.get_mut(&document_id) {
         Some(r) => r,
         None => return Err(ApiError::RequestFailed(String::from("Document not found"))),
     };
@@ -228,7 +236,7 @@ pub async fn insert(
         return Err(ApiError::RequestFailed(format!("Value not found")));
     };
 
-    let op: BroadcastOperation = match rga
+    let mut op: BroadcastOperation = match rga
         .local_insert(value.clone(), request.left, request.right)
         .await
     {
@@ -239,6 +247,8 @@ pub async fn insert(
             )))
         }
     };
+
+    op.document_id = document_id;
 
     let s4 = op.s4vector();
 
@@ -254,7 +264,7 @@ pub async fn insert(
     tx.execute(
         operation_query,
         &[
-            &id,
+            &document_id,
             &(s4.ssn as i64),
             &(s4.sum as i64),
             &(s4.sid as i64),
@@ -275,7 +285,7 @@ pub async fn insert(
     tx.execute(
         snapshot_query,
         &[
-            &id,
+            &document_id,
             &(s4.ssn as i64),
             &(s4.sum as i64),
             &(s4.sid as i64),
@@ -300,7 +310,7 @@ pub async fn insert(
     })?;
 
     //Broadcast to SNS
-    db::send_operation(op);
+    db::send_operation(Arc::clone(sns_client), &topic.lock().await, &op);
 
     return Ok(());
 }
@@ -311,12 +321,12 @@ pub async fn handle_sns_notification(
     notification: Json<SnsNotification>,
     rgas: &rocket::State<SharedRGAs>,
 ) -> Result<(), ApiError> {
-    let rags = rgas.lock().await;
+    let mut rags = rgas.lock().await;
 
     let operation: BroadcastOperation = serde_json::from_str(&notification.0.message)
-        .map_err(|e| ApiError::InternalServerError(format!("Failed to parse SNS message")))?;
+        .map_err(|_| ApiError::InternalServerError(format!("Failed to parse SNS message")))?;
 
-    let rga = rags.get(&operation.document_id);
+    let rga = rags.get_mut(&operation.document_id);
 
     let rga = match rga {
         Some(r) => r,
@@ -327,8 +337,8 @@ pub async fn handle_sns_notification(
 
     match operation.operation.as_str() {
         "Insert" => {
-            rga.remote_insert(
-                operation.value.unwrap(),
+            &rga.remote_insert(
+                operation.value.clone().unwrap(),
                 operation.s4vector(),
                 operation.left,
                 operation.right,
@@ -342,6 +352,7 @@ pub async fn handle_sns_notification(
         "Delete" => {
             rga.remote_delete(operation.s4vector()).await;
         }
+        _ => return Err(ApiError::RequestFailed(format!("Invalid operation"))),
     }
 
     return Ok(());
