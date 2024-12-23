@@ -76,10 +76,6 @@ pub async fn create_document(
         })?
         .get(0);
 
-    // Serialize S4Vector to JSON string
-    let initial_s4vector =
-        serde_json::json!({"ssn":0,"sum":0,"sid":replica_id,"seq":0}).to_string();
-
     // Start Database trasaction to ensure atomicity
     let tx = client.transaction().await.map_err(|e| {
         ApiError::DatabaseError(format!("Failed to start transaction: {}", e.to_string()))
@@ -201,33 +197,112 @@ async fn fetch_document(
     return Ok(());
 }
 
-/*
-
 /// Insert a value into the RGA of a specific document.
-#[post("/document/<id>/insert", data = "<request>")]
+/* pub struct OperationRequest {
+    value: Option<String>,
+    s4vector: Option<S4Vector>,
+    tombstone: bool,
+    left: Option<S4Vector>,
+    right: Option<S4Vector>,
+}*/
+
+#[post("/document/<id>/insert", format = "json", data = "<request>")]
 pub async fn insert(
     id: String,
     request: Json<OperationRequest>,
     rgas: &rocket::State<SharedRGAs>,
+    db: &rocket::State<Arc<Mutex<Client>>>,
 ) -> Result<(), ApiError> {
     let mut rgas = rgas.lock().await;
+    let mut client = db.lock().await;
+
+    // Check if the document has been loaded
     let rga: &mut RGA = match rgas.get_mut(&id) {
         Some(r) => r,
         None => return Err(ApiError::RequestFailed(String::from("Document not found"))),
     };
 
-    if let Some(value) = &request.value {
-        rga.local_insert(value.clone(), request.left, request.right)
-            .await
-            .map_err(|_| ApiError::DependencyMissing)?;
-        Ok(())
+    let value: String = if request.value.is_some() {
+        request.value.clone().unwrap()
     } else {
-        Err(ApiError::InvalidOperation(
-            "Value is required for insert".to_string(),
-        ))
-    }
-}
+        return Err(ApiError::RequestFailed(format!("Value not found")));
+    };
 
+    let s4 = match rga
+        .local_insert(value.clone(), request.left, request.right)
+        .await
+    {
+        Ok(obj) => obj.s4vector,
+        Err(_) => {
+            return Err(ApiError::RequestFailed(format!(
+                "Error inserting into file"
+            )))
+        }
+    };
+
+    let operation_query = r#"INSERT INTO operations (document_id,ssn,sum,sid,seq,value,tombstone,timestamp) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)"#;
+    let snapshot_query = r#"INSERT INTO document_snapshots (document_id,ssn,sum,sid,seq,value,tombstone) VALUES ($1,$2,$3,$4,$5,$6,$7)"#;
+
+    let current_time = chrono::Utc::now().to_rfc3339().to_string();
+
+    let tx = client.transaction().await.map_err(|e| {
+        ApiError::DatabaseError(format!("Failed to create transaction: {:?}", e.to_string()))
+    })?;
+
+    tx.execute(
+        operation_query,
+        &[
+            &id,
+            &(s4.ssn as i64),
+            &(s4.sum as i64),
+            &(s4.sid as i64),
+            &(s4.seq as i64),
+            &value,
+            &false,
+            &current_time,
+        ],
+    )
+    .await
+    .map_err(|e| {
+        ApiError::DatabaseError(format!(
+            "Failed to insert into operations table: {:?}",
+            e.to_string()
+        ))
+    })?;
+
+    tx.execute(
+        snapshot_query,
+        &[
+            &id,
+            &(s4.ssn as i64),
+            &(s4.sum as i64),
+            &(s4.sid as i64),
+            &(s4.seq as i64),
+            &value,
+            &false,
+        ],
+    )
+    .await
+    .map_err(|e| {
+        ApiError::DatabaseError(format!(
+            "Failed to insert into document_snapshot table: {:?}",
+            e.to_string()
+        ))
+    })?;
+
+    tx.commit().await.map_err(|e| {
+        ApiError::DatabaseError(format!(
+            "Failed to insert into document_snapshot table: {:?}",
+            e.to_string()
+        ))
+    })?;
+
+    //Broadcast to SNS
+    todo!();
+
+    return Ok(());
+}
+/*
 /// Update a value in the RGA of a specific document.
 #[post("/document/<id>/update", data = "<request>")]
 pub async fn update(

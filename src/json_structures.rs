@@ -42,12 +42,11 @@ pub struct DocumentSnapshot {
 /// Represents the request body for operations.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OperationRequest {
-    operation: String,
-    value: Option<String>,
-    s4vector: Option<S4Vector>,
-    tombstone: bool,
-    left: Option<S4Vector>,
-    right: Option<S4Vector>,
+    pub value: Option<String>,
+    pub s4vector: Option<S4Vector>,
+    pub tombstone: bool,
+    pub left: Option<S4Vector>,
+    pub right: Option<S4Vector>,
 }
 
 /// Represents the health response structure.
