@@ -1,85 +1,29 @@
-use crate::rga::rga::Operation;
-use chrono::Utc;
+use crate::ApiError;
 use rocket::fairing::AdHoc;
 use rocket::tokio;
 use rocket::tokio::sync::Mutex;
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use std::collections::HashMap;
 use std::sync::Arc;
-use tokio_postgres::types::ToSql;
 use tokio_postgres::{Client, NoTls};
 
-/// Represents an operation stored in the Operations table.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct DbOperation {
-    pub operation_id: i32,
-    pub replica_id: i32,
-    pub document_id: String,
-    pub datetime: String,  // ISO 8601 format
-    pub operation: String, // Insert, Update, or Delete
-    pub s4vector: Value,   // JSON representation of S4Vector
-    pub value: Option<String>,
-    pub tombstone: bool,
-}
-
-/// Represents a document snapshot stored as tuples of (S4Vector, Value, Tombstone).
-#[derive(Debug, Serialize, Deserialize)]
-pub struct DocumentSnapshot {
-    pub document_id: String,
-    pub s4vector: Value, // JSON representation of S4Vector
-    pub value: String,
-    pub tombstone: bool,
-}
-
-impl DbOperation {
-    /// Inserts an operation into the Operations table.
-    pub async fn insert_into_db(&self, client: &Client) -> Result<(), tokio_postgres::Error> {
-        let query = r#"INSERT INTO operations (replica_id,document_id,datetime,operation,s4vector,value,tombstone) VALUES ($1,$2,$3,$4,$5,$6,$7)"#;
-        client
-            .execute(
-                query,
-                &[
-                    &self.replica_id,
-                    &self.document_id,
-                    &self.datetime,
-                    &self.operation,
-                    &self.s4vector,
-                    &self.value,
-                    &self.tombstone,
-                ],
-            )
-            .await?;
-        Ok(())
-    }
-}
-
-impl DocumentSnapshot {
-    /// Inserts or updates a document snapshot in the Document Snapshot table.
-    pub async fn upsert_into_db(&self, client: &Client) -> Result<(), tokio_postgres::Error> {
-        let query = r#"INSERT INTO document_snapshots (document_id,s4vector,value,tombstone) VALUES ($1,$2,$3,$4) ON CONFLICT (document_id,s4vector) DO UPDATE SET value = $3, tombstone = $4"#;
-
-        client
-            .execute(
-                query,
-                &[
-                    &self.document_id,
-                    &self.s4vector,
-                    &self.value,
-                    &self.tombstone,
-                ],
-            )
-            .await?;
-        Ok(())
-    }
-}
-
 /// Initialize the database connection securely.
+/// # Example
+/// ```rust
+/// use tokio::*;
+/// use nimble::initialize_db;
+///
+/// #[tokio::main]
+/// async fn main() {
+///     match initialize_db().await {
+///         Ok(client) => println!("Database connection established successfully"),
+///         Err(e) => eprintln!("Failed to establish database connection: {:?},e.to_string()),
+///     }
+/// }
+/// ```
 pub async fn initialize_db() -> Result<Client, tokio_postgres::Error> {
     let database_url =
         std::env::var("DATABASE_URL").expect("DATABASE_URL environment variable must be set");
 
-    let (_, connection) = tokio_postgres::connect(&database_url, NoTls).await?;
+    let (client, connection) = tokio_postgres::connect(&database_url, NoTls).await?;
 
     // Spawn the connection handling task
     tokio::spawn(async move {
@@ -87,6 +31,8 @@ pub async fn initialize_db() -> Result<Client, tokio_postgres::Error> {
             eprintln!("connection error: {:?}", e);
         }
     });
+
+    return Ok(client);
 }
 
 /// Fairing for managing the PostgreSQL client in rocket's state
@@ -102,14 +48,42 @@ pub fn attatch_db() -> AdHoc {
     })
 }
 
-/// Process a local operation
-pub async fn process_local_operation(
-    operation: DbOperation,
-    snapshot: DocumentSnapshot,
-    client: &Client,
-) -> Result<(), tokio_postgres::Error> {
-    // Insert operation into the Operations table
-    operation.insert_into_db(client).await?;
-    snapshot.upsert_into_db(client).await?;
-    Ok(())
+/// Connects to the AWS RDS instance
+pub async fn connect_to_db() -> Result<Client, ApiError> {
+    let host = std::env::var("DB_HOST").expect("DB_HOST must be set");
+    let user = std::env::var("DB_USER").expect("DB_USER must be set");
+    let password = std::env::var("DB_PSW").expect("DB_PSW must be set");
+    let dbname = std::env::var("DB_NAME").expect("DB_NAME must be set");
+
+    let config = format!(
+        "host={} user={} password={} dbname={}",
+        host, user, password, dbname
+    );
+
+    let (client, connection) = tokio_postgres::connect(&config, NoTls)
+        .await
+        .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
+
+    tokio::spawn(async move { connection.await });
+    return Ok(client);
+}
+
+/// Sends a SNS message
+pub async fn send_sns_notification(
+    message: &str,
+    sns_topic: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let config = aws_config::load_from_env().await;
+    let sns_client = aws_sdk_sns::Client::new(&config);
+
+    match sns_client
+        .publish()
+        .message(message)
+        .topic_arn(sns_topic)
+        .send()
+        .await
+    {
+        Ok(_) => Ok(()),
+        Err(e) => Err(Box::new(e)),
+    }
 }

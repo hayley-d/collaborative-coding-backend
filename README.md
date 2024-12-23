@@ -19,15 +19,10 @@ Session state is preserved until explicitly terminated.
 Maintain version history for each document, allowing users to revert to previous versions if needed.
 
 ## 2.2 AWS Services
-| Service	| Purpose| 
-| -------| -------| 
-| API Gateway	| WebSocket API for real-time communication between clients and the backend.| 
-| Lambda	| Event-driven serverless functions for conflict resolution, notifications, etc.| 
-| DynamoDB	| Low-latency database for storing documents and metadata.| 
-| SQS/EventBridge	| Manage event-driven workflows for notifications and background tasks.| 
-| Cognito	| User authentication and authorization.| 
-| CloudWatch	| Monitor performance and log events.| 
-| S3	(Optional) | Store large files or assets (e.g., user-uploaded documents).| 
+AWS RDS: Aurora/PostgreSQL
+- Fully managed database service
+- Scalability
+- Backup, patch management and automatic failover
 
 
 ## Backend Workflow
