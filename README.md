@@ -25,36 +25,6 @@ AWS RDS: Aurora/PostgreSQL
 - Backup, patch management and automatic failover
 
 
-## Backend Workflow
-#### 3.1 Client Connection
-WebSocket Setup:
-Clients establish a connection to the backend via AWS API Gateway (WebSocket API).
-Each client is assigned a unique session ID and user ID upon connection.
-#### 3.2 Collaborative Editing
-Event Handling:
-
-When a user types, an "Edit" event is sent to the backend with details such as:
-Document ID.
-User ID.
-Edit operation (e.g., "Insert 'x' at position 10").
-Backend broadcasts the event to all other participants in the session.
-Conflict Resolution:
-
-Lambda functions resolve conflicts using OT or CRDT algorithms.
-Changes are applied to the document state and saved in DynamoDB.
-#### 3.3 Real-Time Notifications
-Event Dispatch:
-Notifications (e.g., "User X joined the session") are pushed to connected clients using WebSocket.
-SQS/EventBridge ensures event delivery and retries for failure.
-#### 3.4 Persistence and Versioning
-Database Writes:
-
-Edits are periodically saved to DynamoDB for persistence.
-Each change is versioned for traceability.
-Version Retrieval:
-
-Users can request previous versions, which the backend fetches from DynamoDB.
-
 ## Choices
 ### Rocket Framework
 I chose to work with rocket as it works with a fully asynchronous core and all asynchronous tasks are multiplexed on a configurable number of worker threads.
@@ -126,5 +96,15 @@ FROM operations
 WHERE document_id = '<document_id>'
 ORDER BY ssn, sum, sid, seq;
 ```
+
+CREATE TABLE document_snapshots (
+    document_id UUID NOT NULL,
+    ssn BIGINT NOT NULL,    -- Session ID
+    sum BIGINT NOT NULL,    -- Logical clock value
+    sid BIGINT NOT NULL,    -- Site ID
+    seq BIGINT NOT NULL,    -- Sequence number
+    value TEXT,             -- Value of the node (optional for delete)
+    tombstone BOOLEAN DEFAULT FALSE, -- Logical deletion
+);
 
 

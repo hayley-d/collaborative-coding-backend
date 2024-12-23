@@ -1,5 +1,8 @@
 use crate::rga::rga::RGA;
-use crate::{ApiError, CreateDocumentRequest, CreateDocumentResponse, OperationRequest, S4Vector};
+use crate::{
+    ApiError, CreateDocumentRequest, CreateDocumentResponse, DocumentSnapshot, OperationRequest,
+    S4Vector,
+};
 use rocket::serde::json::Json;
 use rocket::tokio::sync::Mutex;
 use rocket::{get, post};
@@ -35,7 +38,8 @@ type SharedRGAs = Arc<Mutex<HashMap<String, RGA>>>;
 ///     "document_id" : "f47ac10b-58cc-4372-a567-0e02b2c3d479",
 ///     "message" : "Document f47ac10b-58cc-4372-a567-0e02b2c3d479 created successfully"
 /// }
-#[post("/create", format = "json", data = "<request>")]
+
+#[post("/create_document", format = "json", data = "<request>")]
 pub async fn create_document(
     request: Json<CreateDocumentRequest>,
     replica_id: &rocket::State<Arc<Mutex<i64>>>,
@@ -82,14 +86,22 @@ pub async fn create_document(
     })?;
 
     // SQL query to insert a new snapshot into the document_snapshots table
-    let snapshot_query = r#"INSERT INTO document_snapshots (document_id,s4vector,value,tombstone) VALUES ($1,$2,$3,$4)"#;
+    let snapshot_query = r#"INSERT INTO document_snapshots (document_id,ssn,sum,sid,seq,value,tombstone) VALUES ($1,$2,$3,$4,$5,$6,$7)"#;
     // SQL query to insert a new operation into the operations table
     let operation_query = r#"INSERT INTO operations (document_id,ssn,sum,sid,seq,value,tombstone,timestamp) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)"#;
 
     // Execute the snapshot insert query
     tx.execute(
         snapshot_query,
-        &[&document_id, &initial_s4vector, &initial_content, &false],
+        &[
+            &document_id,
+            &(0 as i32),
+            &(0 as i32),
+            &replica_id,
+            &(0 as i32),
+            &initial_content,
+            &false,
+        ],
     )
     .await
     .map_err(|e| {
@@ -135,29 +147,61 @@ pub async fn create_document(
     }));
 }
 
-/*
 /// Fetch a document from the Aurora DB and initialize an RGA.
 #[get("/document/<id>")]
 async fn fetch_document(
     id: String,
     rgas: &rocket::State<SharedRGAs>,
-    db: &rocket::State<SharedDB>,
+    replica_id: &rocket::State<Arc<Mutex<i64>>>,
+    db: &rocket::State<Arc<Mutex<Client>>>,
 ) -> Result<(), ApiError> {
     let mut rgas = rgas.lock().await;
+    let client = db.lock().await;
+
+    // Check if the document has already been loaded into the hashmap
     if rgas.contains_key(&id) {
         return Ok(());
     }
 
-    let operations = db
-        .lock()
-        .await
-        .fetch_document(&id)
-        .map_err(|e| ApiError::DatabaseError(e))?;
-    let rga = RGA::create_from(operations, 1, 1); // Session ID and Site ID placeholders.
-    rgas.insert(id.clone(), rga);
+    let query =
+        r#"SELECT * from document_snapshots WHERE document_id=$1 ORDER BY ssn, sum, sid,seq;"#;
+
+    let rows = client.query(query, &[&id]).await.map_err(|e| {
+        ApiError::DatabaseError(format!("Failed to find document in database: {:?}", e))
+    })?;
+
+    let snapshots: Vec<DocumentSnapshot> = rows
+        .iter()
+        .map(|row| DocumentSnapshot {
+            document_id: row.get(0),
+            ssn: row.get(1),
+            sum: row.get(2),
+            sid: row.get(3),
+            seq: row.get(4),
+            value: row.get(5),
+            tombstone: row.get(6),
+        })
+        .collect();
+
+    let mut rga = RGA::new(*(replica_id.lock().await) as u64, 1);
+
+    for operation in snapshots {
+        let s4 = S4Vector {
+            ssn: operation.ssn as u64,
+            sum: operation.sum as u64,
+            sid: operation.sid as u64,
+            seq: operation.seq as u64,
+        };
+
+        rga.remote_insert(operation.value, s4, None, None);
+    }
+
+    rgas.insert(id, rga);
 
     return Ok(());
 }
+
+/*
 
 /// Insert a value into the RGA of a specific document.
 #[post("/document/<id>/insert", data = "<request>")]

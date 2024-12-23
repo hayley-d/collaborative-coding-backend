@@ -31,13 +31,14 @@ async fn rocket() -> _ {
         .mount(
             "/",
             routes![
-                insert,
+                /*insert,
                 update,
                 delete,
                 remote_insert,
                 remote_update,
                 remote_delete,
-                state
+                state*/
+                create_document
             ],
         )
         .launch()

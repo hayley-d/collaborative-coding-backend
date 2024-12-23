@@ -27,6 +27,18 @@ pub struct FetchDocumentResponse {
     pub operations: Vec<Operation>,
 }
 
+/// Struct for holding the document snapshot data
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DocumentSnapshot {
+    pub document_id: Uuid,
+    pub ssn: i64,
+    pub sum: i64,
+    pub sid: i64,
+    pub seq: i64,
+    pub value: String,
+    pub tombstone: bool,
+}
+
 /// Represents the request body for operations.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OperationRequest {

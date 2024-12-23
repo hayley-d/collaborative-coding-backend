@@ -5,40 +5,10 @@ use rocket::tokio::sync::Mutex;
 use std::sync::Arc;
 use tokio_postgres::{Client, NoTls};
 
-/// Initialize the database connection securely.
-/// # Example
-/// ```rust
-/// use tokio::*;
-/// use nimble::initialize_db;
-///
-/// #[tokio::main]
-/// async fn main() {
-///     match initialize_db().await {
-///         Ok(client) => println!("Database connection established successfully"),
-///         Err(e) => eprintln!("Failed to establish database connection: {:?},e.to_string()),
-///     }
-/// }
-/// ```
-pub async fn initialize_db() -> Result<Client, tokio_postgres::Error> {
-    let database_url =
-        std::env::var("DATABASE_URL").expect("DATABASE_URL environment variable must be set");
-
-    let (client, connection) = tokio_postgres::connect(&database_url, NoTls).await?;
-
-    // Spawn the connection handling task
-    tokio::spawn(async move {
-        if let Err(e) = connection.await {
-            eprintln!("connection error: {:?}", e);
-        }
-    });
-
-    return Ok(client);
-}
-
 /// Fairing for managing the PostgreSQL client in rocket's state
 pub fn attatch_db() -> AdHoc {
     AdHoc::on_ignite("Attatch DB", |rocket| async {
-        match initialize_db().await {
+        match connect_to_db().await {
             Ok(client) => rocket.manage(Arc::new(Mutex::new(client))),
             Err(e) => {
                 eprintln!("Failed to initialize DB: {:?}", e);
