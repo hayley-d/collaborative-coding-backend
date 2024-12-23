@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use tokio_postgres::types::ToSql;
 
 /// `S4Vector` is a structure representing an operation in a distributed system. It ensures
 /// causal consistency and deterministic ordering for collaborative applications, particularly
@@ -40,6 +41,34 @@ pub struct S4Vector {
     pub sid: u64,
     /// Sequence number, providing a local logical clock increment.
     pub seq: u64,
+}
+
+impl ToSql for S4Vector {
+    fn to_sql(
+        &self,
+        ty: &tokio_postgres::types::Type,
+        out: &mut BytesMut,
+    ) -> Result<tokio_postgres::types::IsNull, Box<dyn std::error::Error + Sync + Send>>
+    where
+        Self: Sized,
+    {
+        todo!()
+    }
+
+    fn accepts(ty: &tokio_postgres::types::Type) -> bool
+    where
+        Self: Sized,
+    {
+        todo!()
+    }
+
+    fn to_sql_checked(
+        &self,
+        ty: &tokio_postgres::types::Type,
+        out: &mut BytesMut,
+    ) -> Result<tokio_postgres::types::IsNull, Box<dyn std::error::Error + Sync + Send>> {
+        todo!()
+    }
 }
 
 impl std::hash::Hash for S4Vector {
