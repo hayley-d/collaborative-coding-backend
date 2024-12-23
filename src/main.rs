@@ -17,8 +17,8 @@ async fn rocket() -> _ {
     let arguements: Vec<String> = env::args().collect();
     let rgas: Arc<Mutex<HashMap<String, RGA>>> = Arc::new(Mutex::new(HashMap::new()));
 
-    let replica_id: u64 = match arguments.get(2) {
-        Some(id) => id,
+    let replica_id: i64 = match arguments.get(2) {
+        Some(id) => id.parse::<i64>().unwrap(),
         None => std::process::exit(1),
     };
 
