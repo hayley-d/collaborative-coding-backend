@@ -237,7 +237,7 @@ pub async fn insert(
     };
 
     let mut op: BroadcastOperation = match rga
-        .local_insert(value.clone(), request.left, request.right)
+        .local_insert(value.clone(), request.left, request.right, document_id)
         .await
     {
         Ok(obj) => obj,
@@ -310,7 +310,14 @@ pub async fn insert(
     })?;
 
     //Broadcast to SNS
-    db::send_operation(Arc::clone(sns_client), &topic.lock().await, &op);
+    match db::send_operation(Arc::clone(sns_client), &topic.lock().await, &op).await {
+        Ok(_) => (),
+        Err(_) => {
+            return Err(ApiError::DatabaseError(format!(
+                "Failed to send SNS notification"
+            )))
+        }
+    };
 
     return Ok(());
 }
@@ -337,13 +344,14 @@ pub async fn handle_sns_notification(
 
     match operation.operation.as_str() {
         "Insert" => {
-            &rga.remote_insert(
-                operation.value.clone().unwrap(),
-                operation.s4vector(),
-                operation.left,
-                operation.right,
-            )
-            .await;
+            let _ = &rga
+                .remote_insert(
+                    operation.value.clone().unwrap(),
+                    operation.s4vector(),
+                    operation.left,
+                    operation.right,
+                )
+                .await;
         }
         "Update" => {
             rga.remote_update(operation.s4vector(), operation.value.unwrap())

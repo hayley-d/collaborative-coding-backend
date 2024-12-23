@@ -1,5 +1,6 @@
 pub mod rga {
     use rocket::tokio::sync::RwLock;
+    use uuid::{uuid, Uuid};
 
     /// The `RGA` module implements a Replicated Growable Array (RGA),
     /// a Conflict-free Replicated Data Type (CRDT) designed for distributed systems.
@@ -277,6 +278,7 @@ pub mod rga {
             value: String,
             left: Option<S4Vector>,
             right: Option<S4Vector>,
+            document_id: Uuid,
         ) -> Result<BroadcastOperation, OperationError> {
             let new_node: Node = match (left, right) {
                 (Some(l), Some(r)) => {
@@ -383,6 +385,7 @@ pub mod rga {
 
             return Ok(BroadcastOperation {
                 operation: "Insert".to_string(),
+                document_id,
                 ssn: s4vector.ssn as i64,
                 sum: s4vector.sum as i64,
                 sid: s4vector.sid as i64,
@@ -403,6 +406,7 @@ pub mod rga {
         pub async fn local_delete(
             &mut self,
             s4vector: S4Vector,
+            document_id: Uuid,
         ) -> Result<BroadcastOperation, OperationError> {
             let node: Arc<RwLock<Node>> = match self.hash_map.get(&s4vector) {
                 Some(node) => Arc::clone(&node),
@@ -428,6 +432,7 @@ pub mod rga {
 
             return Ok(BroadcastOperation {
                 operation: "Delete".to_string(),
+                document_id,
                 ssn: s4vector.ssn as i64,
                 sum: s4vector.sum as i64,
                 sid: s4vector.sid as i64,
@@ -449,6 +454,7 @@ pub mod rga {
             &mut self,
             s4vector: S4Vector,
             value: String,
+            document_id: Uuid,
         ) -> Result<BroadcastOperation, OperationError> {
             let node: Arc<RwLock<Node>> = match &self.hash_map.get(&s4vector) {
                 Some(node) => Arc::clone(node),
@@ -477,6 +483,7 @@ pub mod rga {
             );
             return Ok(BroadcastOperation {
                 operation: "Update".to_string(),
+                document_id,
                 ssn: s4vector.ssn as i64,
                 sum: s4vector.sum as i64,
                 sid: s4vector.sid as i64,
@@ -609,7 +616,14 @@ pub mod rga {
         #[tokio::test]
         async fn test_insert() {
             let mut rga = RGA::new(1, 1);
-            let result = rga.local_insert("A".to_string(), None, None).await;
+            let result = rga
+                .local_insert(
+                    "A".to_string(),
+                    None,
+                    None,
+                    uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8"),
+                )
+                .await;
             assert!(result.is_ok());
             assert_eq!(rga.hash_map.len(), 1);
         }
@@ -618,11 +632,18 @@ pub mod rga {
         async fn test_delete() {
             let mut rga = RGA::new(1, 1);
             let s4 = rga
-                .local_insert("A".to_string(), None, None)
+                .local_insert(
+                    "A".to_string(),
+                    None,
+                    None,
+                    uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8"),
+                )
                 .await
                 .unwrap()
                 .s4vector();
-            let result = rga.local_delete(s4.clone()).await;
+            let result = rga
+                .local_delete(s4.clone(), uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8"))
+                .await;
             assert!(result.is_ok());
             assert!(rga.hash_map[&s4].read().await.tombstone);
         }
@@ -631,11 +652,22 @@ pub mod rga {
         async fn test_update() {
             let mut rga = RGA::new(1, 1);
             let s4 = rga
-                .local_insert("A".to_string(), None, None)
+                .local_insert(
+                    "A".to_string(),
+                    None,
+                    None,
+                    uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8"),
+                )
                 .await
                 .unwrap()
                 .s4vector();
-            let result = rga.local_update(s4.clone(), "B".to_string()).await;
+            let result = rga
+                .local_update(
+                    s4.clone(),
+                    "B".to_string(),
+                    uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8"),
+                )
+                .await;
             assert!(result.is_ok());
             assert_eq!(rga.hash_map[&s4].read().await.value, "B".to_string());
         }
@@ -643,12 +675,26 @@ pub mod rga {
         #[tokio::test]
         async fn test_read() {
             let mut rga = RGA::new(1, 1);
-            rga.local_insert("A".to_string(), None, None).await.unwrap();
+            rga.local_insert(
+                "A".to_string(),
+                None,
+                None,
+                uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8"),
+            )
+            .await
+            .unwrap();
             let s4 = rga.head.unwrap();
-            rga.local_insert("B".to_string(), Some(s4), None)
+            rga.local_insert(
+                "B".to_string(),
+                Some(s4),
+                None,
+                uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8"),
+            )
+            .await
+            .unwrap();
+            rga.local_delete(s4, uuid!("67e55044-10b1-426f-9247-bb680e5fe0c8"))
                 .await
                 .unwrap();
-            rga.local_delete(s4).await.unwrap();
 
             let result = rga.read().await;
             assert_eq!(result, vec!["B".to_string()]);
