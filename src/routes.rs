@@ -84,7 +84,7 @@ pub async fn create_document(
     // SQL query to insert a new snapshot into the document_snapshots table
     let snapshot_query = r#"INSERT INTO document_snapshots (document_id,s4vector,value,tombstone) VALUES ($1,$2,$3,$4)"#;
     // SQL query to insert a new operation into the operations table
-    let operation_query = r#"INSERT INTO operations (replica_id,document_id,datetime,operation,s4vector,value,tombstone) VALUES ($1,$2,$3,$4,$5,$6,$7)"#;
+    let operation_query = r#"INSERT INTO operations (document_id,ssn,sum,sid,seq,value,tombstone,timestamp) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)"#;
 
     // Execute the snapshot insert query
     tx.execute(
@@ -99,17 +99,20 @@ pub async fn create_document(
         ))
     })?;
 
+    let timestamp = chrono::Utc::now().to_rfc3339().to_string();
+
     // Execute the operation insert query
     tx.execute(
         operation_query,
         &[
-            &replica_id,
             &document_id,
-            &create_date,
-            &"Insert",
-            &initial_s4vector,
+            &(0 as i32),
+            &(0 as i32),
+            &replica_id,
+            &(0 as i32),
             &Some(initial_content.clone()),
             &false,
+            &timestamp,
         ],
     )
     .await

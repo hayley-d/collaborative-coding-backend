@@ -118,8 +118,6 @@ CREATE TABLE operations (
     seq BIGINT NOT NULL,    -- Sequence number
     value TEXT,             -- Value of the node (optional for delete)
     tombstone BOOLEAN DEFAULT FALSE, -- Logical deletion
-    left_s4 JSONB,          -- JSON representation of left S4Vector
-    right_s4 JSONB,         -- JSON representation of right S4Vector
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

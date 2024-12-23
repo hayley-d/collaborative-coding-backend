@@ -17,6 +17,16 @@ pub struct CreateDocumentResponse {
     pub message: String,   // Confirmation message
 }
 
+/// Response structure for a fetched document
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FetchDocumentResponse {
+    pub document_id: Uuid,
+    pub title: String,
+    pub owner_id: Uuid,
+    pub creation_date: String,
+    pub operations: Vec<Operation>,
+}
+
 /// Represents the request body for operations.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OperationRequest {
