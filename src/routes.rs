@@ -145,7 +145,7 @@ pub async fn create_document(
 
 /// Fetch a document from the Aurora DB and initialize an RGA.
 #[get("/document/<id>")]
-async fn fetch_document(
+pub async fn fetch_document(
     id: String,
     rgas: &rocket::State<SharedRGAs>,
     replica_id: &rocket::State<Arc<Mutex<i64>>>,
@@ -192,7 +192,7 @@ async fn fetch_document(
             seq: operation.seq as u64,
         };
 
-        rga.remote_insert(operation.value, s4, None, None);
+        rga.remote_insert(operation.value, s4, None, None).await;
     }
 
     rgas.insert(document_id, rga);
@@ -303,10 +303,213 @@ pub async fn insert(
     })?;
 
     tx.commit().await.map_err(|e| {
+        ApiError::DatabaseError(format!("Failed to commit transaction: {:?}", e.to_string()))
+    })?;
+
+    //Broadcast to SNS
+    match db::send_operation(Arc::clone(sns_client), &topic.lock().await, &op).await {
+        Ok(_) => (),
+        Err(_) => {
+            return Err(ApiError::DatabaseError(format!(
+                "Failed to send SNS notification"
+            )))
+        }
+    };
+
+    return Ok(());
+}
+
+#[post("/document/<id>/update", format = "json", data = "<request>")]
+pub async fn update(
+    id: String,
+    request: Json<OperationRequest>,
+    rgas: &rocket::State<SharedRGAs>,
+    db: &rocket::State<Arc<Mutex<Client>>>,
+    sns_client: &rocket::State<Arc<Mutex<SnsClient>>>,
+    topic: &rocket::State<Arc<Mutex<String>>>,
+) -> Result<(), ApiError> {
+    let document_id: Uuid = Uuid::parse_str(&id)
+        .map_err(|_| ApiError::RequestFailed(format!("Failed to parse document id")))?;
+
+    let mut rgas = rgas.lock().await;
+    let mut client = db.lock().await;
+
+    // Check if the document has been loaded
+    let rga: &mut RGA = match rgas.get_mut(&document_id) {
+        Some(r) => r,
+        None => return Err(ApiError::RequestFailed(String::from("Document not found"))),
+    };
+
+    let value: String = if request.value.is_some() {
+        request.value.clone().unwrap()
+    } else {
+        return Err(ApiError::RequestFailed(format!("Value not found")));
+    };
+
+    let mut op: BroadcastOperation = match rga
+        .local_update(request.s4vector.unwrap(), value.clone(), document_id)
+        .await
+    {
+        Ok(obj) => obj,
+        Err(_) => return Err(ApiError::RequestFailed(format!("Error updating file"))),
+    };
+
+    op.document_id = document_id;
+
+    let s4 = op.s4vector();
+
+    let operation_query = r#"INSERT INTO operations (document_id,ssn,sum,sid,seq,value,tombstone,timestamp) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)"#;
+    let snapshot_query = r#"INSERT INTO document_snapshots (document_id,ssn,sum,sid,seq,value,tombstone) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (document_id,ssn,sum,sid,seq) DO UPDATE set value = EXCLUDED.value, tombstone = EXCLUDED.tombstone"#;
+
+    let current_time = chrono::Utc::now().to_rfc3339().to_string();
+
+    let tx = client.transaction().await.map_err(|e| {
+        ApiError::DatabaseError(format!("Failed to create transaction: {:?}", e.to_string()))
+    })?;
+
+    tx.execute(
+        operation_query,
+        &[
+            &document_id,
+            &(s4.ssn as i64),
+            &(s4.sum as i64),
+            &(s4.sid as i64),
+            &(s4.seq as i64),
+            &value,
+            &false,
+            &current_time,
+        ],
+    )
+    .await
+    .map_err(|e| {
         ApiError::DatabaseError(format!(
-            "Failed to insert into document_snapshot table: {:?}",
+            "Failed to insert into operations table: {:?}",
             e.to_string()
         ))
+    })?;
+
+    tx.execute(
+        snapshot_query,
+        &[
+            &document_id,
+            &(s4.ssn as i64),
+            &(s4.sum as i64),
+            &(s4.sid as i64),
+            &(s4.seq as i64),
+            &value,
+            &false,
+        ],
+    )
+    .await
+    .map_err(|e| {
+        ApiError::DatabaseError(format!(
+            "Failed to update into document_snapshot table: {:?}",
+            e.to_string()
+        ))
+    })?;
+
+    tx.commit().await.map_err(|e| {
+        ApiError::DatabaseError(format!("Failed to commit transaction: {:?}", e.to_string()))
+    })?;
+
+    //Broadcast to SNS
+    match db::send_operation(Arc::clone(sns_client), &topic.lock().await, &op).await {
+        Ok(_) => (),
+        Err(_) => {
+            return Err(ApiError::DatabaseError(format!(
+                "Failed to send SNS notification"
+            )))
+        }
+    };
+
+    return Ok(());
+}
+
+#[post("/document/<id>/delete", format = "json", data = "<request>")]
+pub async fn delete(
+    id: String,
+    request: Json<OperationRequest>,
+    rgas: &rocket::State<SharedRGAs>,
+    db: &rocket::State<Arc<Mutex<Client>>>,
+    sns_client: &rocket::State<Arc<Mutex<SnsClient>>>,
+    topic: &rocket::State<Arc<Mutex<String>>>,
+) -> Result<(), ApiError> {
+    let document_id: Uuid = Uuid::parse_str(&id)
+        .map_err(|_| ApiError::RequestFailed(format!("Failed to parse document id")))?;
+
+    let mut rgas = rgas.lock().await;
+    let mut client = db.lock().await;
+
+    // Check if the document has been loaded
+    let rga: &mut RGA = match rgas.get_mut(&document_id) {
+        Some(r) => r,
+        None => return Err(ApiError::RequestFailed(String::from("Document not found"))),
+    };
+
+    let mut op: BroadcastOperation = match rga
+        .local_delete(request.s4vector.unwrap(), document_id)
+        .await
+    {
+        Ok(obj) => obj,
+        Err(_) => return Err(ApiError::RequestFailed(format!("Error updating file"))),
+    };
+
+    op.document_id = document_id;
+
+    let s4 = op.s4vector();
+
+    let operation_query = r#"INSERT INTO operations (document_id,ssn,sum,sid,seq,value,tombstone,timestamp) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)"#;
+    let snapshot_query = r#"INSERT INTO document_snapshots (document_id,ssn,sum,sid,seq,value,tombstone) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (document_id,ssn,sum,sid,seq) DO UPDATE set value = EXCLUDED.value, tombstone = EXCLUDED.tombstone"#;
+
+    let current_time = chrono::Utc::now().to_rfc3339().to_string();
+
+    let tx = client.transaction().await.map_err(|e| {
+        ApiError::DatabaseError(format!("Failed to create transaction: {:?}", e.to_string()))
+    })?;
+
+    tx.execute(
+        operation_query,
+        &[
+            &document_id,
+            &(s4.ssn as i64),
+            &(s4.sum as i64),
+            &(s4.sid as i64),
+            &(s4.seq as i64),
+            &"",
+            &false,
+            &current_time,
+        ],
+    )
+    .await
+    .map_err(|e| {
+        ApiError::DatabaseError(format!(
+            "Failed to insert into operations table: {:?}",
+            e.to_string()
+        ))
+    })?;
+
+    tx.execute(
+        snapshot_query,
+        &[
+            &document_id,
+            &(s4.ssn as i64),
+            &(s4.sum as i64),
+            &(s4.sid as i64),
+            &(s4.seq as i64),
+            &"",
+            &false,
+        ],
+    )
+    .await
+    .map_err(|e| {
+        ApiError::DatabaseError(format!(
+            "Failed to update document_snapshot table: {:?}",
+            e.to_string()
+        ))
+    })?;
+
+    tx.commit().await.map_err(|e| {
+        ApiError::DatabaseError(format!("Failed to commit transaction: {:?}", e.to_string()))
     })?;
 
     //Broadcast to SNS
@@ -365,154 +568,3 @@ pub async fn handle_sns_notification(
 
     return Ok(());
 }
-/*
-/// Update a value in the RGA of a specific document.
-#[post("/document/<id>/update", data = "<request>")]
-pub async fn update(
-    id: String,
-    request: Json<OperationRequest>,
-    rgas: &rocket::State<SharedRGAs>,
-) -> Result<(), ApiError> {
-    let mut rgas = rgas.lock().await;
-    let rga = rgas
-        .get_mut(&id)
-        .ok_or_else(|| ApiError::RequestFailed(String::from("Document not found")))?;
-
-    if let Some(value) = &request.value {
-        rga.local_update(
-            request
-                .left
-                .ok_or_else(|| ApiError::InvalidOperation("Left neighbor required".into()))?,
-            value.clone(),
-        )
-        .await
-        .map_err(|_| ApiError::DependencyMissing)?;
-        Ok(())
-    } else {
-        Err(ApiError::InvalidOperation(
-            "Value is required for update".to_string(),
-        ))
-    }
-}
-
-/// Delete a value from the RGA of a specific document.
-#[post("/document/<id>/delete", data = "<request>")]
-pub async fn delete(
-    id: String,
-    request: Json<OperationRequest>,
-    rgas: &rocket::State<SharedRGAs>,
-) -> Result<(), ApiError> {
-    let mut rgas = rgas.lock().await;
-    let rga = rgas
-        .get_mut(&id)
-        .ok_or_else(|| ApiError::RequestFailed(String::from("Document not found")))?;
-
-    rga.local_delete(
-        request
-            .left
-            .ok_or_else(|| ApiError::InvalidOperation("Left neighbor required".into()))?,
-    )
-    .await
-    .map_err(|_| ApiError::DependencyMissing)?;
-    Ok(())
-}
-
-/// Applies an insert opperation received from another replica
-#[post("/document/<id>/remote/insert", data = "<request>")]
-pub async fn remote_insert(
-    id: String,
-    request: Json<OperationRequest>,
-    rgas: &rocket::State<SharedRGAs>,
-) -> Result<(), ApiError> {
-    let mut rgas = rgas.lock().await;
-    let rga = rgas
-        .get_mut(&id)
-        .ok_or_else(|| ApiError::RequestFailed(String::from("Document not found")))?;
-
-    if let Some(value) = &request.value {
-        rga.remote_insert(
-            value.to_string(),
-            request.s4vector.unwrap(),
-            request.left,
-            request.right,
-        )
-        .await;
-        return Ok(());
-    } else {
-        Err(ApiError::InvalidOperation(
-            "Value is required for insert".to_string(),
-        ))
-    }
-}
-
-/// Applies an update opperation received from another replica
-#[post("/document/<id>/remote/update", data = "<request>")]
-pub async fn remote_update(
-    id: String,
-    request: Json<OperationRequest>,
-    rgas: &rocket::State<SharedRGAs>,
-) -> Result<(), ApiError> {
-    let mut rgas = rgas.lock().await;
-    let rga = rgas
-        .get_mut(&id)
-        .ok_or_else(|| ApiError::RequestFailed(String::from("Document not found")))?;
-
-    if let Some(value) = &request.value {
-        rga.remote_update(request.s4vector.unwrap(), value.to_string())
-            .await;
-        return Ok(());
-    } else {
-        Err(ApiError::InvalidOperation(
-            "Value is required for insert".to_string(),
-        ))
-    }
-}
-
-/// Applies a delete opperation received from another replica
-#[post("/document/<id>/remote/delete", data = "<request>")]
-pub async fn remote_delete(
-    id: String,
-    request: Json<OperationRequest>,
-    rgas: &rocket::State<SharedRGAs>,
-) -> Result<(), ApiError> {
-    let mut rgas = rgas.lock().await;
-    let rga = rgas
-        .get_mut(&id)
-        .ok_or_else(|| ApiError::RequestFailed(String::from("Document not found")))?;
-
-    rga.remote_delete(request.s4vector.unwrap()).await;
-    return Ok(());
-}
-
-/// Returns the current state of the RGA as a JSON object for frontend use.
-#[get("/document/<id>/state")]
-pub async fn state(
-    id: String,
-    rgas: &rocket::State<SharedRGAs>,
-) -> Result<Json<Vec<String>>, ApiError> {
-    let mut rgas = rgas.lock().await;
-    let rga = rgas
-        .get_mut(&id)
-        .ok_or_else(|| ApiError::RequestFailed(String::from("Document not found")))?;
-
-    return Ok(Json(rga.read().await));
-}
-
-
-*/
-/*async fn broadcast_operation(
-    url: &str,
-    operation: &OperationRequest,
-) -> Result<(), reqwest::Error> {
-    let client = reqwest::Client::new();
-    let response = client.post(url).json(&operation).send().await?;
-
-    if response.status().is_success() {
-        Ok(())
-    } else {
-        Err(reqwest::Error::new(
-            reqwest::StatusCode::INTERNAL_SERVER_ERROR,
-            "Broadcast failed",
-        ))
-    }
-}*/
