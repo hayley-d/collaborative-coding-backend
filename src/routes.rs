@@ -12,95 +12,14 @@ use std::sync::Arc;
 use tokio_postgres::Client;
 use uuid::Uuid;
 
-/// This module defines the API routes for a collaborative text editing backend.
+/// This module defines the API routes for a collaborative coding backend system.
 /// It handles document operations (insert, update, delete), document management (fetch, load),
 /// and broadcasting changes via SNS (Amazon Simple Notification Service).
 ///
 /// # Features
 /// - **Insert, Update, Delete**: CRUD operations for managing text collaboratively.
 /// - **Fetch, Load**: Retrieve and initialize document snapshots.
-/// - **SNS Integration**: Simulates broadcasting changes to other replicas.
-///
-/// # API Routes
-///
-/// ## POST `/insert`
-/// Inserts a new text node into the document.
-/// ### Request Body
-/// ```json
-/// {
-///     "document_id": "doc123",
-///     "left": {"ssn": 1, "sum": 10, "sid": 2, "seq": 3},
-///     "right": {"ssn": 1, "sum": 15, "sid": 2, "seq": 4},
-///     "value": "Hello, world!"
-/// }
-/// ```
-/// ### Response
-/// - `200 OK`: Insert successful.
-/// - `400 Bad Request`: Missing or invalid fields.
-/// - `500 Internal Server Error`: Database or server error.
-///
-/// ## POST `/update`
-/// Updates the value of an existing text node.
-/// ### Request Body
-/// ```json
-/// {
-///     "document_id": "doc123",
-///     "node": {"ssn": 1, "sum": 10, "sid": 2, "seq": 3},
-///     "value": "Updated text"
-/// }
-/// ```
-/// ### Response
-/// - `200 OK`: Update successful.
-/// - `404 Not Found`: Node not found.
-/// - `500 Internal Server Error`: Database or server error.
-///
-/// ## POST `/delete`
-/// Deletes a node from the document.
-/// ### Request Body
-/// ```json
-/// {
-///     "document_id": "doc123",
-///     "node": {"ssn": 1, "sum": 10, "sid": 2, "seq": 3}
-/// }
-/// ```
-/// ### Response
-/// - `200 OK`: Delete successful.
-/// - `404 Not Found`: Node not found.
-/// - `500 Internal Server Error`: Database or server error.
-///
-/// ## GET `/fetch/<id>`
-/// Fetches the document's current state from the database.
-/// ### Response
-/// ```json
-/// ["Hello, world!", "Updated text"]
-/// ```
-/// - `200 OK`: Document fetched successfully.
-/// - `404 Not Found`: Document not found.
-///
-/// ## POST `/load`
-/// Loads a document into memory from the database.
-/// ### Request Body
-/// ```json
-/// {
-///     "document_id": "doc123"
-/// }
-/// ```
-/// ### Response
-/// - `200 OK`: Document loaded successfully.
-/// - `404 Not Found`: Document not found in the database.
-/// - `500 Internal Server Error`: Database or server error.
-///
-/// ## POST `/sns`
-/// Simulates sending a broadcast message using SNS.
-/// ### Request Body
-/// ```json
-/// {
-///     "message": "Change broadcasted."
-/// }
-/// ```
-/// ### Response
-/// - `200 OK`: Message broadcasted.
-/// - `500 Internal Server Error`: SNS simulation error.
+/// - **SNS Integration**: Broadcasts changes to other replicas.
 
 /// Shared state type: Maps document IDs to their corresponding RGA instances.
 type SharedRGAs = Arc<Mutex<HashMap<Uuid, RGA>>>;
