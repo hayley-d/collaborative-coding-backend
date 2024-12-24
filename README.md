@@ -1,41 +1,65 @@
 # Real-Time Collaborative Coding Platform Backend
 
-The platform enables multiple users to collaborate on code in real time. It focuses on a robust backend capable of handling high concurrency, ensuring data consistency, and resolving conflicts seamlessly. The system will use AWS to leverage scalability, reliability, and real-time capabilities. By leveraging Rust, Rocket, AWS RDS Aurora PostgreSQL, and AWS SNS, we achieve high performance, eventual consistency, and cloud-based scalability. The CRDT integration ensures seamless conflict resolution, making it an excellent foundation for distributed applications.
+This backend powers a **real-time collaborative coding platform**, enabling multiple users to edit code simultaneously with seamless conflict resolution and high reliability. Built with a focus on scalability and resilience, the system utilizes **Conflict-Free Replicated Data Types (CRDTs)** for managing distributed edits, ensuring eventual consistency across replicas.
+
+By leveraging **Rust** for its high performance and memory safety, along with **AWS SNS** and **AWS RDS Aurora PostgreSQL**, the platform achieves cloud-native scalability and real-time capabilities. The integration of CRDTs, specifically the **Replicated Growable Array (RGA)**, ensures deterministic ordering of operations, making it an ideal choice for distributed systems. This project showcases expertise in modern cloud-based architectures and high-performance backend development.
 
 ---
 ## Features
-1. **Collaborative Editing**: Multiple users can work on a document concurrently with changes seamlessly merged using the CRDT.
-2. **Conflict-Free Replicated Data Type (CRDT)**: Leveraging RGA (Replicated Growable Array) for eventual consistency in distributed enviroments.
-3. **Event Propagation**: AWS SNS ensures real-time synchronization accross replicas.
-4. **Cloud Integration**: Stores document metadata and snapshots using AWS RDS Aurora PostgreSQL.
-5. **Rust Backend**: Built using Rocket for efficient, secure and aysnchronous HTTP API handling.
+1. **Distributed System Design**: 
+	- Designed to handle multiple replicas concurrently, with operations synchronized through efficient messaging.
+	- Supports eventual consistency with lightweight coordination.
+	- Uses an **RDS PostgreSQL database** for robust data persistence and scalability.
+	
+2. **Conflict-Free Replicated Data Type (CRDT)**: 
+	- Leverages a **Replicated Growable Array (RGA)** CRDT to manage text nodes efficiently, ensuring conflict-free operation across distributed replicas.
+	- Employs **S4Vector** identifiers to provide deterministic ordering of operations, even during concurrent edits.
+	- Guarantees **eventual consistency** and smooth conflict resolution without requiring centralized coordination.
+  
+3. **AWS Integration**:
+	- Integrates **AWS SNS** for broadcasting changes.
+	- Uses an **RDS PostgreSQL database** for robust data persistence and scalability.
+	
+4. **Scalability and Resilience**:
+	- Designed to support multiple replicas and handle high levels of concurrent operations without sacrificing performance.
+	- Ensures durability through lightweight synchronization protocols and persistent storage.
+	- Built for distributed environments, with a focus on minimizing network overhead and latency.
+  
+5. **Rust Backend**: 
+	- Built using Rocket for efficient, secure and aysnchronous HTTP API handling.
+	- Exposes clear and efficient RESTful endpoints for managing collaborative documents.
+	- Implements robust error handling to provide meaningful feedback for invalid requests or system failures.
+	- Designed to be extensible and adaptable to future feature additions or deployments in real-world distributed systems.
+---
 
 ## Technology Stack
-### 1. Conflict-Free Replicated Data Type (CRDT)
-Using the **Replicated Growable Array (RGA)** model for conflict resolution:
-- **Eventual Consistency:** Enables smooth collaboration without explicit locking mechanisms.
-- **Decentralization:** Each replica operates independently, ensuring fault tolerance.
-- **Ease of Merge:** The RGA ensures seamless integration of edits even in concurrent scenarios.
+This project leverages a carefully chosen technology stack to deliver a robust, scalable, and high-performance backend for collaborative coding. Here's a breakdown of the stack and why each component was selected:
 
-### 2. AWS RDS Aurora PostgreSQL
-AWS RDS Aurora PostgreSQL is a fully managed relational database service designed for high-throughput, low-latency workloads. 
-It was chosen because:
-- **Transactional Integrity**: Aurora uses a fault-tolerant, distributed log-based storage system, ensuring strong ACID compliance.
-- **Optimized for High Write Workloads**: With its write-optimized engine, Aurora PostgreSQL is well-suited for this project, which involves frequent updates and inserts to the `document_snapshots` and `operations` tables.
-- **Scalable Reads**: Read replicas allow for horizontal scaling to handle increasing read demands.
-- **Advanced SQL Features**: PostgreSQL's support for JSON fields and indexing mechanisms makes querying and organizing metadata efficient.
+### **Conflict-Free Replicated Data Types (CRDTs)**
+  - CRDTs provide a mathematically proven foundation for building distributed systems that handle concurrent operations without conflicts.
+  - The **Replicated Growable Array (RGA)** ensures deterministic ordering of text nodes, enabling seamless real-time collaboration.
+  - Removes the need for a centralized coordinator, enhancing scalability and fault tolerance.
+  - Handles network partitions gracefully, ensuring eventual consistency.
 
-### **4. AWS SNS**
-AWS SNS provides a robust mechanism for propagating events across distributed replicas:
-- **Publish-Subscribe Model**: Ensures changes are sent to all replicas without polling.
-- **Real-Time Notifications**: Propagates document operations to other nodes instantly.
+### **AWS Services**
+  - AWS offers highly reliable, scalable, and globally distributed services to meet the demands of modern applications.
+  - **Amazon RDS (PostgreSQL)**: Ensures robust data persistence with features like automated backups, multi-AZ deployment, and read replicas.
+  - **Amazon SNS**: Facilitates efficient broadcasting of changes to replicas, ensuring real-time synchronization.
+  - Services are fully managed, reducing operational overhead.
 
-### **2. Rocket**
-Rocket is a web framework in Rust that complements the project’s goals:
-- **Type-Safe Routing**: Compile-time guarantees prevent route mismatches.
-- **Ease of Use**: Minimal boilerplate for setting up APIs.
-- **Asynchronous Support**: Built-in support for `tokio` enables high-concurrency requests.
-- **Security**: Sensible defaults for headers, cookies, and input validation.
+### **PostgreSQL**
+  - PostgreSQL's robust feature set, including support for JSONB, makes it a perfect choice for storing structured CRDT data like S4Vectors.
+  - Its ACID compliance ensures reliable transaction handling.
+
+### **Rocket Framework**
+  - Rocket simplifies building RESTful APIs with its intuitive routing system and built-in support for JSON serialization/deserialization.
+  - Strong type safety ensures error-free request handling.
+  - Excellent integration with Rust's async ecosystem.
+
+### **Rust**
+  - Rust is known for its memory safety and zero-cost abstractions, making it ideal for building performance-critical applications.
+  - Its concurrency model ensures efficient handling of multiple replicas and real-time updates.
+  - The ecosystem provides powerful libraries like `tokio` for asynchronous programming and `rocket` for building RESTful APIs.
 
 ---
 ## Database Design
