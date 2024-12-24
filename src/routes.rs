@@ -12,10 +12,95 @@ use std::sync::Arc;
 use tokio_postgres::Client;
 use uuid::Uuid;
 
-/// This module implements routes for managing collaborative documents
-/// using RGAs (Replicated Growable Arrays) in a distributed system.
-/// It includes functionality to fetch documents, synchronize with the
-/// database, manage CRDT operations, and monitor replica health.
+/// This module defines the API routes for a collaborative text editing backend.
+/// It handles document operations (insert, update, delete), document management (fetch, load),
+/// and broadcasting changes via SNS (Amazon Simple Notification Service).
+///
+/// # Features
+/// - **Insert, Update, Delete**: CRUD operations for managing text collaboratively.
+/// - **Fetch, Load**: Retrieve and initialize document snapshots.
+/// - **SNS Integration**: Simulates broadcasting changes to other replicas.
+///
+/// # API Routes
+///
+/// ## POST `/insert`
+/// Inserts a new text node into the document.
+/// ### Request Body
+/// ```json
+/// {
+///     "document_id": "doc123",
+///     "left": {"ssn": 1, "sum": 10, "sid": 2, "seq": 3},
+///     "right": {"ssn": 1, "sum": 15, "sid": 2, "seq": 4},
+///     "value": "Hello, world!"
+/// }
+/// ```
+/// ### Response
+/// - `200 OK`: Insert successful.
+/// - `400 Bad Request`: Missing or invalid fields.
+/// - `500 Internal Server Error`: Database or server error.
+///
+/// ## POST `/update`
+/// Updates the value of an existing text node.
+/// ### Request Body
+/// ```json
+/// {
+///     "document_id": "doc123",
+///     "node": {"ssn": 1, "sum": 10, "sid": 2, "seq": 3},
+///     "value": "Updated text"
+/// }
+/// ```
+/// ### Response
+/// - `200 OK`: Update successful.
+/// - `404 Not Found`: Node not found.
+/// - `500 Internal Server Error`: Database or server error.
+///
+/// ## POST `/delete`
+/// Deletes a node from the document.
+/// ### Request Body
+/// ```json
+/// {
+///     "document_id": "doc123",
+///     "node": {"ssn": 1, "sum": 10, "sid": 2, "seq": 3}
+/// }
+/// ```
+/// ### Response
+/// - `200 OK`: Delete successful.
+/// - `404 Not Found`: Node not found.
+/// - `500 Internal Server Error`: Database or server error.
+///
+/// ## GET `/fetch/<id>`
+/// Fetches the document's current state from the database.
+/// ### Response
+/// ```json
+/// ["Hello, world!", "Updated text"]
+/// ```
+/// - `200 OK`: Document fetched successfully.
+/// - `404 Not Found`: Document not found.
+///
+/// ## POST `/load`
+/// Loads a document into memory from the database.
+/// ### Request Body
+/// ```json
+/// {
+///     "document_id": "doc123"
+/// }
+/// ```
+/// ### Response
+/// - `200 OK`: Document loaded successfully.
+/// - `404 Not Found`: Document not found in the database.
+/// - `500 Internal Server Error`: Database or server error.
+///
+/// ## POST `/sns`
+/// Simulates sending a broadcast message using SNS.
+/// ### Request Body
+/// ```json
+/// {
+///     "message": "Change broadcasted."
+/// }
+/// ```
+/// ### Response
+/// - `200 OK`: Message broadcasted.
+/// - `500 Internal Server Error`: SNS simulation error.
 
 /// Shared state type: Maps document IDs to their corresponding RGA instances.
 type SharedRGAs = Arc<Mutex<HashMap<Uuid, RGA>>>;
@@ -143,7 +228,8 @@ pub async fn create_document(
     }));
 }
 
-/// Fetch a document from the Aurora DB and initialize an RGA.
+/// Fetch a document from the AWS RDB and initialize a RGA.
+/// `id` is the document UUID.
 #[get("/document/<id>")]
 pub async fn fetch_document(
     id: String,
@@ -209,6 +295,47 @@ pub async fn fetch_document(
     right: Option<S4Vector>,
 }*/
 
+/// Inserts a new value into the correcponding document's RGA.
+///
+/// Example Request:
+/// {
+///     "value" : "Some text here",
+///     "s4vector: {
+///                 "ssn": 2,
+///                 "sum" : 4,
+///                 "sid" : 3,
+///                 "seq" : 3,
+///                 },
+///     "tombstone" : false,
+///     "left" :  {
+///                 "ssn": 2,
+///                 "sum" : 4,
+///                 "sid" : 3,
+///                 "seq" : 3,
+///               },
+///     "right" : null
+/// }
+///
+/// Possible Errors:
+/// 1. Failed to parse document id: If the document id was not provided or is invalid. (code 400)
+///
+/// 2. Document not found: If the document has not been initialized through the /docuement/<id> route
+/// or the document id is invalid. (code 400)
+///
+/// 3. Value not found: If a value was not proivded in the request body. (code 400)
+///
+/// 4. Error inserting into file: There was an error when attempting to insert the value into the
+///    CRDT (code 500)
+///
+/// 5. Failed to create transaction: If there was an error when creating the transaction (code
+///    500).
+///
+/// 6. Failed to insert into <table name> table: There was an issue when creating database row
+///    (code 500)
+///
+/// 7. Failed to commit transaction (code 500)
+///
+/// 8. Failed to send SNS notification: There was a problem sending the notification (code 500)
 #[post("/document/<id>/insert", format = "json", data = "<request>")]
 pub async fn insert(
     id: String,
@@ -302,10 +429,6 @@ pub async fn insert(
         ))
     })?;
 
-    tx.commit().await.map_err(|e| {
-        ApiError::DatabaseError(format!("Failed to commit transaction: {:?}", e.to_string()))
-    })?;
-
     //Broadcast to SNS
     match db::send_operation(Arc::clone(sns_client), &topic.lock().await, &op).await {
         Ok(_) => (),
@@ -315,6 +438,11 @@ pub async fn insert(
             )))
         }
     };
+
+    // After broadcast SNS to ensure it is sent
+    tx.commit().await.map_err(|e| {
+        ApiError::DatabaseError(format!("Failed to commit transaction: {:?}", e.to_string()))
+    })?;
 
     return Ok(());
 }

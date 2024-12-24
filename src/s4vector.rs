@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use tokio_postgres::types::ToSql;
 
 /// `S4Vector` is a structure representing an operation in a distributed system. It ensures
 /// causal consistency and deterministic ordering for collaborative applications, particularly
