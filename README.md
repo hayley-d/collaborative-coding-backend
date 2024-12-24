@@ -1,5 +1,7 @@
 # Real-Time Collaborative Coding Platform Backend
+
 The platform enables multiple users to collaborate on code in real time. It focuses on a robust backend capable of handling high concurrency, ensuring data consistency, and resolving conflicts seamlessly. The system will use AWS to leverage scalability, reliability, and real-time capabilities. By leveraging Rust, Rocket, AWS RDS Aurora PostgreSQL, and AWS SNS, we achieve high performance, eventual consistency, and cloud-based scalability. The CRDT integration ensures seamless conflict resolution, making it an excellent foundation for distributed applications.
+
 ---
 ## Features
 1. **Collaborative Editing**: Multiple users can work on a document concurrently with changes seamlessly merged using the CRDT.
