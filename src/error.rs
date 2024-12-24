@@ -5,6 +5,7 @@ use rocket::{Request, Response};
 use std::io::Cursor;
 use thiserror::Error;
 
+// Error struct for API
 #[derive(Debug, Error, Diagnostic)]
 pub enum ApiError {
     #[error("Dependency missing for the operation")]
