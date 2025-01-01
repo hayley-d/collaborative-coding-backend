@@ -68,6 +68,7 @@ pub struct SnsNotification {
     pub timestamp: String,
 }
 
+/// BroadcastOpteration is the operation sent from one replica to another through AWS SNS
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BroadcastOperation {
     pub operation: String,
