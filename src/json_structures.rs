@@ -85,7 +85,9 @@ pub struct BroadcastOperation {
     pub seq: i64,
     /// Value being inserted/updated (None if delete operation)
     pub value: Option<String>,
+    /// left s4vector if one exists
     pub left: Option<S4Vector>,
+    /// right s4vector if one exists
     pub right: Option<S4Vector>,
 }
 
