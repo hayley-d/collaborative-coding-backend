@@ -72,7 +72,9 @@ pub struct SnsNotification {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BroadcastOperation {
     pub operation: String,
+    /// Operations type (Insert,Update,Delete)
     pub document_id: Uuid,
+    /// document id for the target document
     pub ssn: i64,
     pub sum: i64,
     pub sid: i64,
