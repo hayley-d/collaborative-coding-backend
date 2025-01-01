@@ -19,19 +19,12 @@ pub fn attatch_db() -> AdHoc {
     })
 }
 
-/// Connects to the AWS RDS instance
+/// Connects to the AWS RDS instance using the database connection url set in the .env file under
+/// DB_URL
 pub async fn connect_to_db() -> Result<Client, ApiError> {
-    let host = std::env::var("DB_HOST").expect("DB_HOST must be set");
-    let user = std::env::var("DB_USER").expect("DB_USER must be set");
-    let password = std::env::var("DB_PSW").expect("DB_PSW must be set");
-    let dbname = std::env::var("DB_NAME").expect("DB_NAME must be set");
+    let database_url = std::env::var("DB_URL").expect("DB_URL must be set");
 
-    let config = format!(
-        "host={} user={} password={} dbname={}",
-        host, user, password, dbname
-    );
-
-    let (client, connection) = tokio_postgres::connect(&config, NoTls)
+    let (client, connection) = tokio_postgres::connect(&database_url, NoTls)
         .await
         .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
 
@@ -73,6 +66,7 @@ pub async fn send_operation(
         .message(message)
         .send()
         .await?;
+
     println!("Operation sent to other replicas");
     return Ok(());
 }
