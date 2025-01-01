@@ -59,6 +59,7 @@ pub struct Operation {
     right: S4Vector,
 }
 
+/// SNS notification message send through AWS SNS
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SnsNotification {
     pub operation: String,
