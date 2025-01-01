@@ -83,6 +83,7 @@ pub struct BroadcastOperation {
     pub sid: i64,
     /// Sequence number for the s4vector
     pub seq: i64,
+    /// Value being inserted/updated (None if delete operation)
     pub value: Option<String>,
     pub left: Option<S4Vector>,
     pub right: Option<S4Vector>,
