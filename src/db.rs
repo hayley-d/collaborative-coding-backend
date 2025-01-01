@@ -1,5 +1,6 @@
 use crate::{ApiError, BroadcastOperation};
 use aws_sdk_sns::{Client as SnsClient, Error as SnsError};
+use log::error;
 use rocket::fairing::AdHoc;
 use rocket::tokio;
 use rocket::tokio::sync::Mutex;
@@ -12,7 +13,7 @@ pub fn attatch_db() -> AdHoc {
         match connect_to_db().await {
             Ok(client) => rocket.manage(Arc::new(Mutex::new(client))),
             Err(e) => {
-                error!("
+                error!("Failed to initialize database: {}", e);
                 eprintln!("Failed to initialize DB: {:?}", e);
                 std::process::exit(1);
             }
