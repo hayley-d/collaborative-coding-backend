@@ -79,6 +79,7 @@ pub struct BroadcastOperation {
     pub ssn: i64,
     /// sum for s4vector
     pub sum: i64,
+    /// Site ID or replica ID for the s4vector
     pub sid: i64,
     pub seq: i64,
     pub value: Option<String>,
