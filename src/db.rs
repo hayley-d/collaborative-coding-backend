@@ -28,7 +28,10 @@ pub async fn connect_to_db() -> Result<Client, ApiError> {
 
     let (client, connection) = tokio_postgres::connect(&database_url, NoTls)
         .await
-        .map_err(|e| ApiError::DatabaseError(e.to_string()))?;
+        .map_err(|e| {
+            error!("Failed to establish database connection");
+            ApiError::DatabaseError(e.to_string())
+        })?;
 
     tokio::spawn(async move { connection.await });
     return Ok(client);
@@ -50,7 +53,10 @@ pub async fn send_sns_notification(
         .await
     {
         Ok(_) => Ok(()),
-        Err(e) => Err(Box::new(e)),
+        Err(e) => {
+            error!("Failed to send SNS notification to other replicas");
+            Err(Box::new(e))
+        }
     }
 }
 
