@@ -77,7 +77,7 @@ pub async fn create_document(
         .query_one(&document_query, &[&request.owner_id, &create_date, &title])
         .await
         .map_err(|e| {
-            error!("Failed to insert document into database");
+            error!("Failed to insert document into document table");
             ApiError::DatabaseError(format!(
                 "Failed to insert document metadata into the documents table: {}",
                 e.to_string()
