@@ -104,7 +104,7 @@ pub async fn create_document(
 
     // Execute the snapshot insert query
     tx.execute(
-        snapshot_query,
+        &snapshot_query,
         &[
             &document_id,
             &(0 as i32),
