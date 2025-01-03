@@ -6,7 +6,6 @@ use nimble::routes::*;
 use rocket::tokio::sync::Mutex;
 use std::collections::HashMap;
 use std::env;
-use std::error::Error as StdError;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -14,7 +13,7 @@ use uuid::Uuid;
 extern crate rocket;
 
 #[launch]
-async fn rocket() -> Result<(), Box<dyn StdError>> {
+async fn rocket() -> _ {
     // 1: Database connection string
     // 2. Replica ID
     let arguments: Vec<String> = env::args().collect();
@@ -28,7 +27,10 @@ async fn rocket() -> Result<(), Box<dyn StdError>> {
     let topic_arn = std::env::var("SNS_TOPIC").expect("SNS_TOPIC must be set");
     let replica_id: i64 = match arguments.get(2) {
         Some(id) => id.parse::<i64>().unwrap(),
-        None => std::process::exit(1),
+        None => {
+            error!("No replica ID provided in command line arguments");
+            std::process::exit(1);
+        }
     };
 
     let start_time: DateTime<Utc> = Utc::now();
@@ -50,8 +52,4 @@ async fn rocket() -> Result<(), Box<dyn StdError>> {
                 handle_sns_notification,
             ],
         )
-        .launch()
-        .await;
-
-    Ok(())
 }
