@@ -4,6 +4,7 @@ use crate::{
     DocumentSnapshot, OperationRequest, S4Vector, SnsNotification,
 };
 use aws_sdk_sns::Client as SnsClient;
+use log::error;
 use rocket::serde::json::Json;
 use rocket::tokio::sync::Mutex;
 use rocket::{get, post};
@@ -67,10 +68,13 @@ pub async fn create_document(
     let initial_content = String::new();
 
     // SQL query to insert the document metadata into the documents table
-    let document_query = r#"INSERT INTO document (owner_id,creation_date,title) VALUES ($1,$2,$3) RETURNING document_id"#;
+    let document_query = client.prepare("INSERT INTO document (owner_id,creation_date,title) VALUES ($1,$2,$3) RETURNING document_id").await.map_err(|_| {
+        error!("Failed to insert document into the database");
+        return ApiError::DatabaseError(format!("Failed to create insert query"));
+})?;
     // Execute the query and retrueve the document_id (UUID) for the new document
     let document_id: Uuid = client
-        .query_one(document_query, &[&request.owner_id, &create_date, &title])
+        .query_one(&document_query, &[&request.owner_id, &create_date, &title])
         .await
         .map_err(|e| {
             ApiError::DatabaseError(format!(

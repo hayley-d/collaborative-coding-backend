@@ -19,12 +19,16 @@ async fn rocket() -> _ {
     let arguments: Vec<String> = env::args().collect();
     let rgas: Arc<Mutex<HashMap<Uuid, RGA>>> = Arc::new(Mutex::new(HashMap::new()));
 
+    // database setup
     let config = aws_config::from_env()
         .region(Region::new("af-south-1"))
         .load()
         .await;
+
+    // SNS setup
     let sns_client = Arc::new(Mutex::new(SnsClient::new(&config)));
     let topic_arn = std::env::var("SNS_TOPIC").expect("SNS_TOPIC must be set");
+
     let replica_id: i64 = match arguments.get(2) {
         Some(id) => id.parse::<i64>().unwrap(),
         None => {
