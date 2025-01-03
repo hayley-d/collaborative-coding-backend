@@ -142,6 +142,7 @@ pub async fn create_document(
     )
     .await
     .map_err(|e| {
+        error!("Failed to insert into operation table");
         ApiError::DatabaseError(format!(
             "Failed to insert operation into the operations table: {}",
             e.to_string()
@@ -150,6 +151,7 @@ pub async fn create_document(
 
     // Commit the transaction to persist the changes
     tx.commit().await.map_err(|e| {
+        error!("Failed to commit database transaction");
         ApiError::DatabaseError(format!("Failed to commit transaction: {}", e.to_string()))
     })?;
 
