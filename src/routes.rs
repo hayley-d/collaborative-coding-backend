@@ -97,7 +97,10 @@ pub async fn create_document(
         ApiError::DatabaseError(format!("Failed to create INSERT query for document_snapshot table"))
     })?;
     // SQL query to insert a new operation into the operations table
-    let operation_query = client.prepare("INSERT INTO operations (document_id,ssn,sum,sid,seq,value,tombstone,timestamp) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)").await.map_err(|_| {})?;
+    let operation_query = client.prepare("INSERT INTO operations (document_id,ssn,sum,sid,seq,value,tombstone,timestamp) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)").await.map_err(|_| {
+        error!("Failed to create INSERT query for operations table");
+        ApiError::DatabaseError(format!("Failed to create INSERT query for oeprations table"))
+    })?;
 
     // Execute the snapshot insert query
     tx.execute(
