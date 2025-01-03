@@ -117,6 +117,7 @@ pub async fn create_document(
     )
     .await
     .map_err(|e| {
+        error!("Failed to insert into document_snapshot table");
         ApiError::DatabaseError(format!(
             "Failed to insert document snapshot into the document_snapshots table: {}",
             e.to_string()
