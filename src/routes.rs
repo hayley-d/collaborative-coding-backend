@@ -87,6 +87,7 @@ pub async fn create_document(
 
     // Start Database trasaction to ensure atomicity
     let tx = client.transaction().await.map_err(|e| {
+        error!("Failed to start database transaction");
         ApiError::DatabaseError(format!("Failed to start transaction: {}", e.to_string()))
     })?;
 
