@@ -69,7 +69,7 @@ pub async fn create_document(
 
     // SQL query to insert the document metadata into the documents table
     let document_query = client.prepare("INSERT INTO document (owner_id,creation_date,title) VALUES ($1,$2,$3) RETURNING document_id").await.map_err(|_| {
-        error!("Failed to insert document into the database");
+        error!("Failed to create insert query");
         return ApiError::DatabaseError(format!("Failed to create insert query"));
 })?;
     // Execute the query and retrueve the document_id (UUID) for the new document
@@ -77,6 +77,7 @@ pub async fn create_document(
         .query_one(&document_query, &[&request.owner_id, &create_date, &title])
         .await
         .map_err(|e| {
+            error!("Failed to insert document into database");
             ApiError::DatabaseError(format!(
                 "Failed to insert document metadata into the documents table: {}",
                 e.to_string()
