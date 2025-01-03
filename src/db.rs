@@ -54,7 +54,10 @@ pub async fn send_sns_notification(
         .send()
         .await
     {
-        Ok(_) => Ok(()),
+        Ok(_) => {
+            info!("SNS notification sent to other replicas");
+            Ok(())
+        }
         Err(e) => {
             error!("Failed to send SNS notification to other replicas");
             Err(Box::new(e))
