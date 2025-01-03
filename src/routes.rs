@@ -128,7 +128,7 @@ pub async fn create_document(
 
     // Execute the operation insert query
     tx.execute(
-        operation_query,
+        &operation_query,
         &[
             &document_id,
             &(0 as i32),
