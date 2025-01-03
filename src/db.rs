@@ -27,7 +27,14 @@ pub fn attatch_db() -> AdHoc {
 /// Connects to the AWS RDS instance using the database connection url set in the .env file under
 /// DB_URL
 pub async fn connect_to_db() -> Result<Client, ApiError> {
-    let database_url = std::env::var("DB_URL").expect("DB_URL must be set");
+    let database_url = match std::env::var("DB_URL") {
+        Ok(url) => url,
+        Err(_) => {
+            error!("DB_URL not set in the .env file");
+            std::process::exit(1);
+        }
+    };
+
     let (client, connection) = tokio_postgres::connect(&database_url, NoTls)
         .await
         .map_err(|e| {
@@ -36,6 +43,7 @@ pub async fn connect_to_db() -> Result<Client, ApiError> {
         })?;
 
     tokio::spawn(async move { connection.await });
+    info!("Successfully established a connection to the database");
     return Ok(client);
 }
 
