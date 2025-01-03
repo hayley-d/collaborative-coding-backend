@@ -13,7 +13,10 @@ pub fn attatch_db() -> AdHoc {
         match connect_to_db().await {
             Ok(client) => rocket.manage(Arc::new(Mutex::new(client))),
             Err(e) => {
-                error!("Failed to initialize database: {}", e);
+                error!(
+                    "Unable to start server, failed to initialize database: {}",
+                    e
+                );
                 eprintln!("Failed to initialize DB: {:?}", e);
                 std::process::exit(1);
             }
