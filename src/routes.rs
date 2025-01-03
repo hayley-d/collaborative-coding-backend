@@ -92,7 +92,9 @@ pub async fn create_document(
     })?;
 
     // SQL query to insert a new snapshot into the document_snapshots table
-    let snapshot_query = r#"INSERT INTO document_snapshots (document_id,ssn,sum,sid,seq,value,tombstone) VALUES ($1,$2,$3,$4,$5,$6,$7)"#;
+    let snapshot_query = client.prepare("INSERT INTO document_snapshots (document_id,ssn,sum,sid,seq,value,tombstone) VALUES ($1,$2,$3,$4,$5,$6,$7)").await.map_err(|_| {
+        error!("Failed
+    })?;
     // SQL query to insert a new operation into the operations table
     let operation_query = r#"INSERT INTO operations (document_id,ssn,sum,sid,seq,value,tombstone,timestamp) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)"#;
 
