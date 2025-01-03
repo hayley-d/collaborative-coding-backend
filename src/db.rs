@@ -28,11 +28,10 @@ pub fn attatch_db() -> AdHoc {
 /// DB_URL
 pub async fn connect_to_db() -> Result<Client, ApiError> {
     let database_url = std::env::var("DB_URL").expect("DB_URL must be set");
-
     let (client, connection) = tokio_postgres::connect(&database_url, NoTls)
         .await
         .map_err(|e| {
-            error!("Failed to establish database connection");
+            error!("Failed to establish database connection.");
             ApiError::DatabaseError(e.to_string())
         })?;
 
