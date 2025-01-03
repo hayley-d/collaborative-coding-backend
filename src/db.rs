@@ -1,6 +1,6 @@
 use crate::{ApiError, BroadcastOperation};
 use aws_sdk_sns::{Client as SnsClient, Error as SnsError};
-use log::error;
+use log::{error, info};
 use rocket::fairing::AdHoc;
 use rocket::tokio;
 use rocket::tokio::sync::Mutex;
@@ -77,6 +77,10 @@ pub async fn send_operation(
         .send()
         .await?;
 
+    info!(
+        "SNS {} operation sent to other replicas",
+        operation.operation
+    );
     println!("Operation sent to other replicas");
     return Ok(());
 }
