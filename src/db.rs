@@ -73,6 +73,7 @@ pub async fn send_sns_notification(
     }
 }
 
+/// Send operation SNS notification to other replicas
 pub async fn send_operation(
     sns_client: Arc<Mutex<SnsClient>>,
     topic_arn: &str,
