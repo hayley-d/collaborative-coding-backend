@@ -86,10 +86,6 @@ pub async fn send_operation(
         .send()
         .await?;
 
-    info!(
-        "SNS {} operation sent to other replicas",
-        operation.operation
-    );
-    println!("Operation sent to other replicas");
-    return Ok(());
+    info!(target: "request_logger","SNS {} operation sent to other replicas",operation.operation);
+    Ok(())
 }
