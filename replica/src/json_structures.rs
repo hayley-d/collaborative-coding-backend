@@ -63,6 +63,8 @@ pub struct Operation {
 /// `operation`: The opertation type (Insert,Update,Delete)
 /// `message_id`: A unique message id for the SNS notification.
 /// `topic_arn`: The topic for the SNS notification
+/// `massage`: The message associated with the notificatin.
+/// `timestamp`: The timestamp of the notification.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SnsNotification {
     pub operation: String,
