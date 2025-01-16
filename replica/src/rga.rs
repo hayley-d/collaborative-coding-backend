@@ -122,13 +122,13 @@ pub mod rga {
             left: Option<S4Vector>,
             right: Option<S4Vector>,
         ) -> Self {
-            return Node {
+            Node {
                 value,
                 s4vector: s4,
                 tombstone: false,
                 left,
                 right,
-            };
+            }
         }
 
         pub fn create_from_existing(
@@ -138,13 +138,13 @@ pub mod rga {
             left: Option<S4Vector>,
             right: Option<S4Vector>,
         ) -> Self {
-            return Node {
+            Node {
                 value,
                 s4vector: s4,
                 tombstone,
                 left,
                 right,
-            };
+            }
         }
     }
 
