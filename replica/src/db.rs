@@ -60,11 +60,11 @@ pub async fn send_sns_notification(
         .await
     {
         Ok(_) => {
-            info!("SNS notification sent to other replicas");
+            info!(target: "request_logger","SNS notification sent to other replicas");
             Ok(())
         }
         Err(e) => {
-            error!("Failed to send SNS notification to other replicas");
+            error!(target:"error_logger","Failed to send SNS notification to other replicas");
             Err(Box::new(e))
         }
     }
