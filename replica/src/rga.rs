@@ -213,8 +213,11 @@ pub mod rga {
 
         /// Creates a RGA from a vector of Operations.
         /// Used when fetching an esisting document.
-        /// # Parameters
-        /// A Sorted vector of operations from the DB.
+        ///
+        /// # Arguments
+        /// `operations`: A collection of Operation structs.
+        /// `session_id`: The session id of the current replica.
+        /// `site_id`: The replica id of the current replica.
         ///
         /// # Returns
         /// A new instance of `RGA`.
