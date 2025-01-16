@@ -284,10 +284,10 @@ pub mod rga {
 
         /// Inserts a new value into the RGA.
         ///
-        /// # Parameters
-        /// - `value`: The value to insert.
-        /// - `left`: The S4Vector of the left neighbor (if any).
-        /// - `right`: The S4Vector of the right neighbor (if any).
+        /// # Arguments
+        /// `value`: The value to insert.
+        /// `left`: The S4Vector of the left neighbor (if any).
+        /// `right`: The S4Vector of the right neighbor (if any).
         ///
         /// # Returns
         /// `Ok(())` if the insertion is successful, otherwise an error message.
