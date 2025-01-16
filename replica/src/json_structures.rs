@@ -43,6 +43,8 @@ pub struct DocumentSnapshot {
 /// `value`: The value being Inserted/Updated (None if a delete operation)
 /// `s4vector`: The s4vector for the operation
 /// `tombstone`: Represents if the operation is logically deleted.
+/// `left`: The left s4vector of the operation (if it exists).
+/// `right`: The right s4vector of the opertion (if it exists)
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OperationRequest {
     pub value: Option<String>,
