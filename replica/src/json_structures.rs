@@ -40,6 +40,7 @@ pub struct DocumentSnapshot {
 }
 
 /// Represents the request body for operations.
+/// `value`: The value being Inserted/Updated (None if a delete operation)
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OperationRequest {
     pub value: Option<String>,
