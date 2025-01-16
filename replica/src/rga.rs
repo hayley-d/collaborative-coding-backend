@@ -138,6 +138,9 @@ pub mod rga {
         /// `tombstone`: The tombstone value of the existing node.
         /// `left`: The left s4vector of the existing node.
         /// `right`: The right s4vector of the existing node.
+        ///
+        /// # Returns
+        /// A clone of an existing Node
         pub fn create_from_existing(
             s4: S4Vector,
             value: String,
@@ -191,21 +194,21 @@ pub mod rga {
     impl RGA {
         /// Creates a new instance of the RGA.
         ///
-        /// # Parameters
-        /// - `session_id`: The ID of the current session.
-        /// - `site_id`: The unique ID for the current replica.
+        /// # Arguments
+        /// `session_id`: The ID of the current session.
+        /// `site_id`: The unique ID for the current replica.
         ///
         /// # Returns
         /// A new instance of `RGA`.
         pub fn new(session_id: u64, site_id: u64) -> Self {
-            return RGA {
+            RGA {
                 head: None,
                 hash_map: HashMap::new(),
                 buffer: VecDeque::new(),
                 session_id,
                 site_id,
                 local_sequence: 0,
-            };
+            }
         }
 
         /// Creates a RGA from a vector of Operations.
