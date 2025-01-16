@@ -1,2 +1,5 @@
-/target
-.env
+**/debug/
+**/target/
+**/.env
+Cargo.lock
+**/*.rs.bk
