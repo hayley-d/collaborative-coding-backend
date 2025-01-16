@@ -40,10 +40,10 @@ impl<'r> Responder<'r, 'static> for ApiError {
             ApiError::InternalServerError(_) => Status::InternalServerError,
         };
 
-        return Response::build()
+        Response::build()
             .status(status)
             .header(ContentType::Plain)
             .sized_body(message.len(), Cursor::new(message))
-            .ok();
+            .ok()
     }
 }
