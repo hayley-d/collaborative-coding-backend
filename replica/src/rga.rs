@@ -69,6 +69,8 @@ pub mod rga {
     /// `s4vector`: The s4vector for the operation.
     /// `value`: The value being inserted or updated (None if a delete oepration)
     /// `tomestone`: Indicates a logical delete
+    /// `left`: The s4vector on the left (if one exists)
+    /// `right`: The s4vector on the right (if one exists)
     #[derive(Debug, Clone)]
     pub struct Operation {
         operation: OperationType,
