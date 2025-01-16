@@ -27,7 +27,7 @@ pub async fn connect_to_db() -> Result<Client, ApiError> {
     let database_url = match std::env::var("DB_URL") {
         Ok(url) => url,
         Err(_) => {
-            error!("DB_URL not set in the .env file");
+            error!(target: "error_logger","DB_URL not set in the .env file");
             std::process::exit(1);
         }
     };
@@ -35,13 +35,13 @@ pub async fn connect_to_db() -> Result<Client, ApiError> {
     let (client, connection) = tokio_postgres::connect(&database_url, NoTls)
         .await
         .map_err(|e| {
-            error!("Failed to establish database connection.");
+            error!(target:"error_logger","Failed to establish database connection.");
             ApiError::DatabaseError(e.to_string())
         })?;
 
     tokio::spawn(async move { connection.await });
-    info!("Successfully established a connection to the database");
-    return Ok(client);
+    info!(target:"request_logger","Successfully established a connection to the database");
+    Ok(client)
 }
 
 /// Sends a SNS message
