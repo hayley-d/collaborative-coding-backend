@@ -70,6 +70,15 @@ pub struct SnsNotification {
 }
 
 /// BroadcastOpteration is the operation sent from one replica to another through AWS SNS
+/// `operation`: The operation type (Insert, Update, Delete)
+/// `document_id`: A unique id for the document associated with the operation.
+/// `ssn`: the session number for the associated s4vector
+/// `sum`: the sum for the associated s4vector
+/// `sid`: the replica id for the s4vector
+/// `seq`: The sequence number for the s4vector
+/// `value`: The value being inserted/updated (None if a delete operation)
+/// `left`: The left s4vector if one exists
+/// `right`: The right s4vector if one exits
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BroadcastOperation {
     /// Operations type (Insert,Update,Delete)
