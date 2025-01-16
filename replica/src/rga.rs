@@ -241,9 +241,16 @@ pub mod rga {
                     .insert(op.s4vector, Arc::new(RwLock::new(node)));
                 rga.local_sequence += 1;
             }
-            return rga;
+            rga
         }
 
+        /// Inserts a node into the RGA.
+        ///
+        /// # Arguments
+        /// `node`: The node to insert into the RGA.
+        ///
+        /// # Returns
+        /// The node inserted into the RGA.
         async fn insert_into_list(&mut self, node: Arc<RwLock<Node>>) -> Arc<RwLock<Node>> {
             let left: Option<S4Vector> = node.read().await.left.clone();
 
