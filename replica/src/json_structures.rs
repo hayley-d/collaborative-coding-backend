@@ -60,6 +60,9 @@ pub struct Operation {
 }
 
 /// SNS notification message send through AWS SNS
+/// `operation`: The opertation type (Insert,Update,Delete)
+/// `message_id`: A unique message id for the SNS notification.
+/// `topic_arn`: The topic for the SNS notification
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SnsNotification {
     pub operation: String,
@@ -81,23 +84,14 @@ pub struct SnsNotification {
 /// `right`: The right s4vector if one exits
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BroadcastOperation {
-    /// Operations type (Insert,Update,Delete)
     pub operation: String,
-    /// document id for the target document
     pub document_id: Uuid,
-    /// Session number for s4vector
     pub ssn: i64,
-    /// sum for s4vector
     pub sum: i64,
-    /// Site ID or replica ID for the s4vector
     pub sid: i64,
-    /// Sequence number for the s4vector
     pub seq: i64,
-    /// Value being inserted/updated (None if delete operation)
     pub value: Option<String>,
-    /// left s4vector if one exists
     pub left: Option<S4Vector>,
-    /// right s4vector if one exists
     pub right: Option<S4Vector>,
 }
 
