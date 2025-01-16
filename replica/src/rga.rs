@@ -47,7 +47,6 @@ pub mod rga {
     /// `tombstone`: Indicates whether the node has been logically deleted.
     /// `left`: The `S4Vector` of the left neighbor
     /// `right`: The `S4Vector` of the right neighbor
-
     #[derive(Debug, Clone)]
     pub struct Node {
         pub value: String,
@@ -66,6 +65,10 @@ pub mod rga {
     }
 
     /// Represents an operation in the RGA.
+    /// `operation`: Represents the operation being performed
+    /// `s4vector`: The s4vector for the operation.
+    /// `value`: The value being inserted or updated (None if a delete oepration)
+    /// `tomestone`: Indicates a logical delete
     #[derive(Debug, Clone)]
     pub struct Operation {
         operation: OperationType,
