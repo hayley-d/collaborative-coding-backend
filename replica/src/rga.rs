@@ -108,11 +108,11 @@ pub mod rga {
     impl Node {
         /// Creates a new `Node` instance.
         ///
-        /// # Parameters
-        /// - `value`: The content of the node.
-        /// - `s4vector`: The unique identifier for this node.
-        /// - `left`: The S4Vector of the left neighbor.
-        /// - `right`: The S4Vector of the right neighbor.
+        /// # Arguments
+        /// `value`: The content of the node.
+        /// `s4vector`: The unique identifier for this node.
+        /// `left`: The S4Vector of the left neighbor.
+        /// `right`: The S4Vector of the right neighbor.
         ///
         /// # Returns
         /// A new instance of `Node`.
