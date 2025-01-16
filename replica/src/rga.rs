@@ -279,7 +279,7 @@ pub mod rga {
                 self.head = Some(node.read().await.s4vector);
             }
 
-            return Arc::clone(&node);
+            Arc::clone(&node)
         }
 
         /// Inserts a new value into the RGA.
