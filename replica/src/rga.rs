@@ -83,19 +83,19 @@ pub mod rga {
 
     /// Represents the RGA structure, which is a distributed data structure
     /// supporting concurrent operations and eventual consistency.
+    /// `head`: The head of the linked list.
+    /// `hash_map`: Maps `S4Vector` identifiers to `Node` instances.
+    /// `buffer`: A Buffer for out-of-order operations.
+    /// `session_id`: The current session ID.
+    /// `site_id`: The site ID for the current replica.
+    /// `local_sequence`: The local logical clock.
     #[derive(Debug)]
     pub struct RGA {
-        /// The head of the linked list.
         pub head: Option<S4Vector>,
-        /// Maps `S4Vector` identifiers to `Node` instances.
         pub hash_map: HashMap<S4Vector, Arc<RwLock<Node>>>,
-        /// A Buffer for out-of-order operations.
         pub buffer: VecDeque<Operation>,
-        /// The current session ID.
         pub session_id: u64,
-        /// The site ID for the current replica.
         pub site_id: u64,
-        /// The local logical clock.
         pub local_sequence: u64,
     }
 
