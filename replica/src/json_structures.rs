@@ -95,11 +95,11 @@ pub struct BroadcastOperation {
 impl BroadcastOperation {
     /// Constructs the S4Vector for the broadcast operation
     pub fn s4vector(&self) -> S4Vector {
-        return S4Vector {
+        S4Vector {
             ssn: self.ssn as u64,
             sum: self.sum as u64,
             sid: self.sid as u64,
             seq: self.seq as u64,
-        };
+        }
     }
 }
