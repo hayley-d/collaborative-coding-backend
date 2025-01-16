@@ -471,8 +471,10 @@ pub mod rga {
 
         /// Marks a node as logically deleted.
         ///
-        /// # Parameters
-        /// - `s4vector`: The unique identifier of the node to delete.
+        /// # Arguments
+        /// `s4vector`: The unique identifier of the node to delete.
+        /// `value`: The value of the operation.
+        /// `document_id`: The document id of the document being updated.
         ///
         /// # Returns
         /// `Ok(())` if the deletion is successful, otherwise an error message.
