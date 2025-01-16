@@ -131,6 +131,13 @@ pub mod rga {
             }
         }
 
+        /// Creates a clone of an existing node
+        /// # Arguments
+        /// `s4`: The s4vector of the existing node.
+        /// `value`: The value of the existsing node.
+        /// `tombstone`: The tombstone value of the existing node.
+        /// `left`: The left s4vector of the existing node.
+        /// `right`: The right s4vector of the existing node.
         pub fn create_from_existing(
             s4: S4Vector,
             value: String,
