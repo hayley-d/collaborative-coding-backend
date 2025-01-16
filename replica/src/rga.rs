@@ -509,7 +509,7 @@ pub mod rga {
                 node_guard.left,
                 node_guard.right,
             );
-            return Ok(BroadcastOperation {
+            Ok(BroadcastOperation {
                 operation: "Update".to_string(),
                 document_id,
                 ssn: s4vector.ssn as i64,
@@ -519,7 +519,7 @@ pub mod rga {
                 value: Some(value),
                 left,
                 right,
-            });
+            })
         }
 
         /// Remote operation to add a new element at a position based on a provided UID
