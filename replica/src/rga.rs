@@ -524,6 +524,12 @@ pub mod rga {
 
         /// Remote operation to add a new element at a position based on a provided UID
         /// This operation updates the RGA to ensure eventual consistency
+        ///
+        /// # Arguments
+        /// `value`: The value being inserted.
+        /// `s4vector`: The s4vector for the operation.
+        /// `left`: The left s4vector for the operation.
+        /// `right`: The right s4vector for the operation.
         pub async fn remote_insert(
             &mut self,
             value: String,
