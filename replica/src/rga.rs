@@ -42,17 +42,18 @@ pub mod rga {
     #[allow(dead_code)]
 
     /// Represents a node in the RGA, containing the actual data and metadata for traversal and consistency.    
+    /// `value`: The value of the node.
+    /// `s4vector`: The unique identifier for the node based on S4Vector
+    /// `tombstone`: Indicates whether the node has been logically deleted.
+    /// `left`: The `S4Vector` of the left neighbor
+    /// `right`: The `S4Vector` of the right neighbor
+
     #[derive(Debug, Clone)]
     pub struct Node {
-        /// The value of the node.
         pub value: String,
-        /// The unique identifier for the node based on S4Vector
         pub s4vector: S4Vector,
-        /// Indicates whether the node has been logically deleted.
         pub tombstone: bool,
-        /// The `S4Vector` of the left neighbor
         pub left: Option<S4Vector>,
-        /// The `S4Vector` of the right neighbor
         pub right: Option<S4Vector>,
     }
 
