@@ -409,7 +409,7 @@ pub mod rga {
                 node_guard.right,
             );
 
-            return Ok(BroadcastOperation {
+            Ok(BroadcastOperation {
                 operation: "Insert".to_string(),
                 document_id,
                 ssn: s4vector.ssn as i64,
@@ -419,7 +419,7 @@ pub mod rga {
                 value: Some(value),
                 left,
                 right,
-            });
+            })
         }
 
         /// Marks a node as logically deleted.
