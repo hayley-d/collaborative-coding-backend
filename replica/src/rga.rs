@@ -424,8 +424,8 @@ pub mod rga {
 
         /// Marks a node as logically deleted.
         ///
-        /// # Parameters
-        /// - `s4vector`: The unique identifier of the node to delete.
+        /// # Arguments
+        /// `s4vector`: The unique identifier of the node to delete.
         ///
         /// # Returns
         /// `Ok(())` if the deletion is successful, otherwise an error message.
@@ -456,7 +456,7 @@ pub mod rga {
             let node_guard = node.read().await;
             let (s4vector, left, right) = (node_guard.s4vector, node_guard.left, node_guard.right);
 
-            return Ok(BroadcastOperation {
+            Ok(BroadcastOperation {
                 operation: "Delete".to_string(),
                 document_id,
                 ssn: s4vector.ssn as i64,
@@ -466,7 +466,7 @@ pub mod rga {
                 value: None,
                 left,
                 right,
-            });
+            })
         }
 
         /// Marks a node as logically deleted.
