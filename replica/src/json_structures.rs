@@ -41,6 +41,8 @@ pub struct DocumentSnapshot {
 
 /// Represents the request body for operations.
 /// `value`: The value being Inserted/Updated (None if a delete operation)
+/// `s4vector`: The s4vector for the operation
+/// `tombstone`: Represents if the operation is logically deleted.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OperationRequest {
     pub value: Option<String>,
