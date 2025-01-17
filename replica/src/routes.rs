@@ -390,12 +390,12 @@ pub async fn insert(
         Err(_) => {
             error!(target:"error_logger","Failed to create database transaction");
             return Err(ApiError::DatabaseError(
-                "Failed to create transaction".to_string(),
+                "Failed to create database transaction".to_string(),
             ));
         }
     };
 
-    tx.execute(
+    match tx.execute(
         &operation_query,
         &[
             &document_id,
@@ -409,15 +409,17 @@ pub async fn insert(
         ],
     )
     .await
-    .map_err(|e| {
-        ApiError::DatabaseError(format!(
-            "Failed to insert into operations table: {:?}",
-            e.to_string()
-        ))
-    })?;
+    {
+        Ok(_) => (),
+        Err(_) => {
+            return Err(ApiError::DatabaseError(
+                "Failed to insert into operations table".to_string()
+            ))
+        }
+    }
 
-    tx.execute(
-        snapshot_query,
+    match tx.execute(
+        &snapshot_query,
         &[
             &document_id,
             &(s4.ssn as i64),
@@ -429,12 +431,14 @@ pub async fn insert(
         ],
     )
     .await
-    .map_err(|e| {
-        ApiError::DatabaseError(format!(
-            "Failed to insert into document_snapshot table: {:?}",
-            e.to_string()
-        ))
-    })?;
+    {
+        Ok(_) => (),
+        Err(_) => {
+            return Err(ApiError::DatabaseError(
+                "Failed to insert into document_snapshot table".to_string()
+            ))
+        }
+    }
 
     //Broadcast to SNS
     match db::send_operation(Arc::clone(sns_client), &topic.lock().await, &op).await {
