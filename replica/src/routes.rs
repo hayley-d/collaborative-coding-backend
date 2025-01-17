@@ -49,11 +49,9 @@ pub async fn create_document(
     replica_id: &rocket::State<Arc<Mutex<i64>>>,
     db: &rocket::State<Arc<Mutex<Client>>>,
 ) -> Result<Json<CreateDocumentResponse>, ApiError> {
-    // Lock the database client and replica ID for usage
     let mut client = db.lock().await;
     let replica_id: i64 = *replica_id.lock().await;
 
-    // Default to "New docuement" if the title is empty
     let title = if request.title.to_string().is_empty() {
         String::from("New document")
     } else {
@@ -63,8 +61,8 @@ pub async fn create_document(
     let create_date = chrono::Utc::now().to_rfc3339();
     let initial_content = String::new();
     let document_query = client.prepare("INSERT INTO document (owner_id,creation_date,title) VALUES ($1,$2,$3) RETURNING document_id").await.map_err(|_| {
-        error!("Failed to create insert query for document table");
-        return ApiError::DatabaseError(format!("Failed to create insert query for document table"));
+        error!(target:"error_logger","Failed to create insert query for document table");
+        return ApiError::DatabaseError("Failed to create insert query for document table".to_string());
 })?;
     let document_id: Uuid = client
         .query_one(&document_query, &[&request.owner_id, &create_date, &title])
