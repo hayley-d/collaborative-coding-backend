@@ -275,7 +275,7 @@ pub async fn fetch_document(
 
     rgas.insert(document_id, rga);
 
-    return Ok(());
+    Ok(())
 }
 
 /// Insert a value into the RGA of a specific document.
