@@ -533,12 +533,16 @@ pub async fn update(
 
     let current_time = chrono::Utc::now().to_rfc3339().to_string();
 
-    let tx = client.transaction().await.map_err(|e| {
-        ApiError::DatabaseError(format!("Failed to create transaction: {:?}", e.to_string()))
-    })?;
+    let tx = match client.transaction().await {
+        Ok(q) => q,
+        Err(_) => {
+            error!(target:"error_logger","Failed to create database transaction");
+            return Err(ApiError::RequestFailed("Failed to create database transaction".to_string()));
+        }
+    };
 
-    tx.execute(
-        operation_query,
+    match tx.execute(
+        &operation_query,
         &[
             &document_id,
             &(s4.ssn as i64),
@@ -551,12 +555,13 @@ pub async fn update(
         ],
     )
     .await
-    .map_err(|e| {
-        ApiError::DatabaseError(format!(
-            "Failed to insert into operations table: {:?}",
-            e.to_string()
-        ))
-    })?;
+    {
+        Ok(q) => q,
+        Err(_) => {
+            error!(target:"error_logger","Failed to run insert query for operations table");
+            return Err(ApiError::RequestFailed("Failed to run insert query for operations table".to_string()));
+        }
+    };
 
     tx.execute(
         snapshot_query,
