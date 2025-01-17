@@ -563,8 +563,8 @@ pub async fn update(
         }
     };
 
-    tx.execute(
-        snapshot_query,
+    match tx.execute(
+        &snapshot_query,
         &[
             &document_id,
             &(s4.ssn as i64),
@@ -576,12 +576,13 @@ pub async fn update(
         ],
     )
     .await
-    .map_err(|e| {
-        ApiError::DatabaseError(format!(
-            "Failed to update into document_snapshot table: {:?}",
-            e.to_string()
-        ))
-    })?;
+    {
+        Ok(q) => q,
+        Err(_) => {
+            error!(target:"error_logger","Failed to run insert query for document_snapshot table");
+            return Err(ApiError::RequestFailed("Failed to run insert query for document_snapshot table".to_string()));
+        }
+    };
 
     tx.commit().await.map_err(|e| {
         ApiError::DatabaseError(format!("Failed to commit transaction: {:?}", e.to_string()))
