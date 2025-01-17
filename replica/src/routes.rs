@@ -516,8 +516,20 @@ pub async fn update(
 
     let s4 = op.s4vector();
 
-    let operation_query = r#"INSERT INTO operations (document_id,ssn,sum,sid,seq,value,tombstone,timestamp) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)"#;
-    let snapshot_query = r#"INSERT INTO document_snapshots (document_id,ssn,sum,sid,seq,value,tombstone) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (document_id,ssn,sum,sid,seq) DO UPDATE set value = EXCLUDED.value, tombstone = EXCLUDED.tombstone"#;
+    let operation_query = match client.prepare("INSERT INTO operations (document_id,ssn,sum,sid,seq,value,tombstone,timestamp) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)").await {
+        Ok(q) => q,
+        Err(_) => {
+            error!(target:"error_logger","Failed to create insert statement for operations table");
+            return Err(ApiError::RequestFailed("Failed to create insert statement for operations table".to_string()));
+        }
+    };
+    let snapshot_query = match client.prepare("INSERT INTO document_snapshots (document_id,ssn,sum,sid,seq,value,tombstone) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (document_id,ssn,sum,sid,seq) DO UPDATE set value = EXCLUDED.value, tombstone = EXCLUDED.tombstone").await {
+        Ok(q) => q,
+        Err(_) => {
+            error!(target:"error_logger","Failed to create insert statement for document_snapshot table");
+            return Err(ApiError::RequestFailed("Failed to create insert statement for document_snapshot table".to_string()));
+        }
+    };
 
     let current_time = chrono::Utc::now().to_rfc3339().to_string();
 
