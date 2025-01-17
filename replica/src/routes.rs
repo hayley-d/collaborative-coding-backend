@@ -235,7 +235,10 @@ pub async fn fetch_document(
     };
 
     let rows = match client.query(&query, &[&document_id]).await {
-        Ok(r) => r,
+        Ok(r) => {
+            info!(target:"request_logger","Successfull seelect statement for the document_snapshot table");
+            r
+        }
         Err(_) => {
             error!(target:"error_logger","Failed to execute select statement for the document_snapshot table");
             return Err(ApiError::DatabaseError(
