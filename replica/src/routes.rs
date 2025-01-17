@@ -368,12 +368,18 @@ pub async fn insert(
 
     let current_time = chrono::Utc::now().to_rfc3339().to_string();
 
-    let tx = client.transaction().await.map_err(|e| {
-        ApiError::DatabaseError(format!("Failed to create transaction: {:?}", e.to_string()))
-    })?;
+    let tx = match client.transaction().await {
+        Ok(tx) => tx,
+        Err(_) => {
+            error!(target:"error_logger","Failed to create database transaction");
+            return Err(ApiError::DatabaseError(
+                "Failed to create transaction".to_string(),
+            ));
+        }
+    };
 
     tx.execute(
-        operation_query,
+        &operation_query,
         &[
             &document_id,
             &(s4.ssn as i64),
