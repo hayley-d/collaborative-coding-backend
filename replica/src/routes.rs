@@ -444,6 +444,7 @@ pub async fn insert(
     match db::send_operation(Arc::clone(sns_client), &topic.lock().await, &op).await {
         Ok(_) => (),
         Err(_) => {
+            error!(target:"error_logger","Failed to send SNS notification");
             return Err(ApiError::DatabaseError(format!(
                 "Failed to send SNS notification"
             )))
@@ -451,9 +452,15 @@ pub async fn insert(
     };
 
     // After broadcast SNS to ensure it is sent
-    tx.commit().await.map_err(|e| {
-        ApiError::DatabaseError(format!("Failed to commit transaction: {:?}", e.to_string()))
-    })?;
+    match tx.commit().await {
+        Ok(_) => (),
+        Err(_) => {
+            error!(target:"error_logger","Failed to commit database transaction");
+            return Err(ApiError::DatabaseError(
+                "Failed to commit database transaction".to_string()
+            ))
+        }
+    }
 
     return Ok(());
 }
