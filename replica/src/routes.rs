@@ -4,7 +4,7 @@ use crate::{
     DocumentSnapshot, OperationRequest, S4Vector, SnsNotification,
 };
 use aws_sdk_sns::Client as SnsClient;
-use log::error;
+use log::{error, info};
 use rocket::serde::json::Json;
 use rocket::tokio::sync::Mutex;
 use rocket::{get, post};
@@ -137,15 +137,12 @@ pub async fn create_document(
 
     // Commit the transaction to persist the changes
     match tx.commit().await {
-        Ok(_) => (),
+        Ok(_) => {
+            info!(target:"requet_logger","Successfully commited database trasaction.");
+        }
         Err(_) => {
-            error!("Failed to commit database transaction");
+            error!(target:"error_logger","Failed to commit database transaction");
             ApiError::DatabaseError("Failed to commit transaction".to_string());
-
-            match tx.rollback().await {
-                Ok(_) => (),
-                Err(_) => {}
-            };
         }
     };
 
