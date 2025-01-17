@@ -91,26 +91,31 @@ pub async fn create_document(
     })?;
 
     // Execute the snapshot insert query
-    tx.execute(
-        &snapshot_query,
-        &[
-            &document_id,
-            &(0 as i32),
-            &(0 as i32),
-            &replica_id,
-            &(0 as i32),
-            &initial_content,
-            &false,
-        ],
-    )
-    .await
-    .map_err(|e| {
-        error!(target: "error_logger","Failed to insert into document_snapshot table");
-        ApiError::DatabaseError(format!(
-            "Failed to insert into the document_snapshots table: {}",
-            e.to_string()
-        ))
-    })?;
+    match tx
+        .execute(
+            &snapshot_query,
+            &[
+                &document_id,
+                &(0 as i32),
+                &(0 as i32),
+                &replica_id,
+                &(0 as i32),
+                &initial_content,
+                &false,
+            ],
+        )
+        .await
+    {
+        Ok(_) => {
+            info!(target:"request_logger","Successfull insert into the document_snapshot table");
+        }
+        Err(_) => {
+            error!(target: "error_logger","Failed to insert into document_snapshot table");
+            return Err(ApiError::DatabaseError(
+                "Failed to insert into the document_snapshots table.".to_string(),
+            ));
+        }
+    };
 
     let timestamp = chrono::Utc::now().to_rfc3339().to_string();
 
@@ -148,8 +153,6 @@ pub async fn create_document(
             ));
         }
     }
-
-    // Commit the transaction to persist the changes
     match tx.commit().await {
         Ok(_) => {
             info!(target:"requet_logger","Successfully commited database trasaction.");
