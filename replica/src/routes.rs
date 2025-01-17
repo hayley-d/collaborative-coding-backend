@@ -114,26 +114,33 @@ pub async fn create_document(
 
     let timestamp = chrono::Utc::now().to_rfc3339().to_string();
 
-    tx.execute(
-        &operation_query,
-        &[
-            &document_id,
-            &(0 as i32),
-            &(0 as i32),
-            &replica_id,
-            &(0 as i32),
-            &Some(initial_content.clone()),
-            &false,
-            &timestamp,
-        ],
-    )
-    .await
-    .map_err(|_| {
-        error!(target:"error_logger","Failed to insert into operation table");
-        ApiError::DatabaseError(
-            "Failed to insert operation into the operations table: {}".to_string(),
+    match tx
+        .execute(
+            &operation_query,
+            &[
+                &document_id,
+                &(0 as i32),
+                &(0 as i32),
+                &replica_id,
+                &(0 as i32),
+                &Some(initial_content.clone()),
+                &false,
+                &timestamp,
+            ],
         )
-    })?;
+        .await
+    {
+        Ok(_) => {
+            info!(target:"request_logger","Successfully inserted row into operations table");
+        }
+        Err(_) => {
+            error!(target:"error_logger","Failed to insert into operation table");
+            ApiError::DatabaseError(
+                "Failed to insert operation into the operations table: {}".to_string(),
+            )
+        }
+    }
+    .map_err(|_| {})?;
 
     // Commit the transaction to persist the changes
     match tx.commit().await {
