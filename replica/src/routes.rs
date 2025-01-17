@@ -308,26 +308,6 @@ pub async fn fetch_document(
 ///     "right" : null
 /// }
 ///
-/// Possible Errors:
-/// 1. Failed to parse document id: If the document id was not provided or is invalid. (code 400)
-///
-/// 2. Document not found: If the document has not been initialized through the /docuement/<id> route
-/// or the document id is invalid. (code 400)
-///
-/// 3. Value not found: If a value was not proivded in the request body. (code 400)
-///
-/// 4. Error inserting into file: There was an error when attempting to insert the value into the
-///    CRDT (code 500)
-///
-/// 5. Failed to create transaction: If there was an error when creating the transaction (code
-///    500).
-///
-/// 6. Failed to insert into <table name> table: There was an issue when creating database row
-///    (code 500)
-///
-/// 7. Failed to commit transaction (code 500)
-///
-/// 8. Failed to send SNS notification: There was a problem sending the notification (code 500)
 #[post("/document/<id>/insert", format = "json", data = "<request>")]
 pub async fn insert(
     id: String,
@@ -337,8 +317,15 @@ pub async fn insert(
     sns_client: &rocket::State<Arc<Mutex<SnsClient>>>,
     topic: &rocket::State<Arc<Mutex<String>>>,
 ) -> Result<(), ApiError> {
-    let document_id: Uuid = Uuid::parse_str(&id)
-        .map_err(|_| ApiError::RequestFailed(format!("Failed to parse document id")))?;
+    let document_id: Uuid = match Uuid::parse_str(&id) {
+        Ok(id) => id,
+        Err(_) => {
+            error!(target:"error_logger","Failed to parse document id");
+            return Err(ApiError::RequestFailed(
+                "Failed to parse document id".to_string(),
+            ));
+        }
+    };
 
     let mut rgas = rgas.lock().await;
     let mut client = db.lock().await;
