@@ -462,7 +462,7 @@ pub async fn insert(
         }
     }
 
-    return Ok(());
+    Ok(())
 }
 
 #[post("/document/<id>/update", format = "json", data = "<request>")]
