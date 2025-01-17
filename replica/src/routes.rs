@@ -76,10 +76,13 @@ pub async fn create_document(
         })?
         .get(0);
 
-    let snapshot_query = client.prepare("INSERT INTO document_snapshots (document_id,ssn,sum,sid,seq,value,tombstone) VALUES ($1,$2,$3,$4,$5,$6,$7)").await.map_err(|_| {
-        error!(target:"error_logger","Failed to create INSERT query for document_snapshot table");
-        ApiError::DatabaseError("Failed to create INSERT query for document_snapshot table".to_string())
-    })?;
+    let snapshot_query = match client.prepare("INSERT INTO document_snapshots (document_id,ssn,sum,sid,seq,value,tombstone) VALUES ($1,$2,$3,$4,$5,$6,$7)").await{
+        Ok(sq) => sq,
+        Err(_) => {
+            error!(target:"error_logger","Failed to create INSERT query for document_snapshot table");
+            return Err(ApiError::DatabaseError("Failed to create INSERT query for document_snapshot table".to_string()));
+        }
+    };
     let operation_query = match Client::prepare(&client,"INSERT INTO operations (document_id,ssn,sum,sid,seq,value,tombstone,timestamp) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)").await {
         Ok(oq) => oq,
         Err(_) => {
