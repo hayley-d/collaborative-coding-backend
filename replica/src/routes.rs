@@ -111,6 +111,14 @@ pub async fn create_document(
         }
         Err(_) => {
             error!(target: "error_logger","Failed to insert into document_snapshot table");
+            match tx.rollback().await {
+                Ok(_) => {
+                    info!(target:"request_logger","Successfully rolledback changes made to the database");
+                }
+                Err(_) => {
+                    error!(target:"error_logger","Failed to rollback database changes");
+                }
+            }
             return Err(ApiError::DatabaseError(
                 "Failed to insert into the document_snapshots table.".to_string(),
             ));
