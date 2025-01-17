@@ -497,7 +497,8 @@ pub async fn update(
     let value: String = if request.value.is_some() {
         request.value.clone().unwrap()
     } else {
-        return Err(ApiError::RequestFailed(format!("Value not found")));
+        error!(target:"error_logger","Value not found");
+        return Err(ApiError::RequestFailed("Value not found".to_string()));
     };
 
     let mut op: BroadcastOperation = match rga
