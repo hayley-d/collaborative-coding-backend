@@ -135,12 +135,19 @@ pub async fn create_document(
         }
         Err(_) => {
             error!(target:"error_logger","Failed to insert into operation table");
-            ApiError::DatabaseError(
+            match tx.rollback().await {
+                Ok(_) => {
+                    info!(target:"request_logger","Successfully rolledback changes made to the database");
+                }
+                Err(_) => {
+                    error!(target:"error_logger","Failed to rollback database changes");
+                }
+            }
+            return Err(ApiError::DatabaseError(
                 "Failed to insert operation into the operations table: {}".to_string(),
-            )
+            ));
         }
     }
-    .map_err(|_| {})?;
 
     // Commit the transaction to persist the changes
     match tx.commit().await {
