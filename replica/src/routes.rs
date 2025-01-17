@@ -85,10 +85,15 @@ pub async fn create_document(
         ApiError::DatabaseError("Failed to create INSERT query for oeprations table".to_string())
     })?;
 
-    let tx = client.transaction().await.map_err(|e| {
-        error!(target:"error_logger","Failed to start database transaction");
-        ApiError::DatabaseError(format!("Failed to start transaction: {}", e.to_string()))
-    })?;
+    let tx = match client.transaction().await {
+        Ok(tx) => tx,
+        Err(_) => {
+            error!(target:"error_logger","Failed to start database transaction");
+            return Err(ApiError::DatabaseError(
+                "Failed to start transaction: {}".to_string(),
+            ));
+        }
+    };
 
     // Execute the snapshot insert query
     match tx
