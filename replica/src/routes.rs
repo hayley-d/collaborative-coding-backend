@@ -474,8 +474,13 @@ pub async fn update(
     sns_client: &rocket::State<Arc<Mutex<SnsClient>>>,
     topic: &rocket::State<Arc<Mutex<String>>>,
 ) -> Result<(), ApiError> {
-    let document_id: Uuid = Uuid::parse_str(&id)
-        .map_err(|_| ApiError::RequestFailed(format!("Failed to parse document id")))?;
+    let document_id: Uuid = match Uuid::parse_str(&id) {
+        Ok(id) => id,
+        Err(_) => {
+            error!(target:"error_logger","Failed to parse document id");
+            return Err(ApiError::RequestFailed("Failed to parse document id".to_string()));
+        }
+};
 
     let mut rgas = rgas.lock().await;
     let mut client = db.lock().await;
