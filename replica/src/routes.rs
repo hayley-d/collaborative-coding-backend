@@ -352,9 +352,10 @@ pub async fn insert(
     {
         Ok(obj) => obj,
         Err(_) => {
-            return Err(ApiError::RequestFailed(format!(
-                "Error inserting into file"
-            )))
+            error!(target:"error_logger","Failed to insert into file");
+            return Err(ApiError::RequestFailed(
+                "Error inserting into file".to_string(),
+            ));
         }
     };
 
