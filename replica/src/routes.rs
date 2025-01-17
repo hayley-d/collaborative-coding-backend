@@ -215,13 +215,24 @@ pub async fn fetch_document(
     let mut rgas = rgas.lock().await;
     let client = db.lock().await;
 
-    // Check if the document has already been loaded into the hashmap
     if rgas.contains_key(&document_id) {
         return Ok(());
     }
 
-    let query =
-        r#"SELECT * from document_snapshots WHERE document_id=$1 ORDER BY ssn, sum, sid,seq;"#;
+    let query = match client
+        .prepare(
+            "SELECT * from document_snapshots WHERE document_id=$1 ORDER BY ssn, sum, sid,seq;",
+        )
+        .await
+    {
+        Ok(q) => q,
+        Err(_) => {
+            error!(target:"error_logger","Failed to prepare select query for document_snapshot table");
+            return Err(ApiError::DatabaseError(
+                "Failed to prepare select statement for document_snapshot table.".to_string(),
+            ));
+        }
+    };
 
     let rows = client.query(query, &[&document_id]).await.map_err(|e| {
         ApiError::DatabaseError(format!("Failed to find document in database: {:?}", e))
