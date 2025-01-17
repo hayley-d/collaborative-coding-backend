@@ -64,17 +64,18 @@ pub async fn create_document(
         error!(target:"error_logger","Failed to create insert query for document table");
         return ApiError::DatabaseError("Failed to create insert query for document table".to_string());
 })?;
-    let document_id: Uuid = client
+    let document_id: Uuid = match client
         .query_one(&document_query, &[&request.owner_id, &create_date, &title])
         .await
-        .map_err(|e| {
-            error!("Failed to insert document into document table");
-            ApiError::DatabaseError(format!(
-                "Failed to insert into the documents table: {}",
-                e.to_string()
-            ))
-        })?
-        .get(0);
+    {
+        Ok(id) => id.get(0),
+        Err(_) => {
+            error!(target:"error_logger","Failed to insert document into document table");
+            return Err(ApiError::DatabaseError(
+                "Failed to insert into the documents table: {}".to_string(),
+            ));
+        }
+    };
 
     let snapshot_query = match client.prepare("INSERT INTO document_snapshots (document_id,ssn,sum,sid,seq,value,tombstone) VALUES ($1,$2,$3,$4,$5,$6,$7)").await{
         Ok(sq) => sq,
@@ -83,6 +84,7 @@ pub async fn create_document(
             return Err(ApiError::DatabaseError("Failed to create INSERT query for document_snapshot table".to_string()));
         }
     };
+
     let operation_query = match Client::prepare(&client,"INSERT INTO operations (document_id,ssn,sum,sid,seq,value,tombstone,timestamp) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)").await {
         Ok(oq) => oq,
         Err(_) => {
