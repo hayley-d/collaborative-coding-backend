@@ -80,10 +80,13 @@ pub async fn create_document(
         error!(target:"error_logger","Failed to create INSERT query for document_snapshot table");
         ApiError::DatabaseError("Failed to create INSERT query for document_snapshot table".to_string())
     })?;
-    let operation_query = Client::prepare(&client,"INSERT INTO operations (document_id,ssn,sum,sid,seq,value,tombstone,timestamp) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)").await.map_err(|_| {
-        error!(target: "error_logger","Failed to create INSERT query for operations table");
-        ApiError::DatabaseError("Failed to create INSERT query for oeprations table".to_string())
-    })?;
+    let operation_query = match Client::prepare(&client,"INSERT INTO operations (document_id,ssn,sum,sid,seq,value,tombstone,timestamp) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)").await {
+        Ok(oq) => oq,
+        Err(_) => {
+            error!(target: "error_logger","Failed to create INSERT query for operations table");
+            return Err(ApiError::DatabaseError("Failed to create INSERT query for oeprations table".to_string()));
+        }
+    };
 
     let tx = match client.transaction().await {
         Ok(tx) => tx,
