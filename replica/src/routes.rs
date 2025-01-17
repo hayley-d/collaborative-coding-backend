@@ -18,9 +18,9 @@ use uuid::Uuid;
 /// and broadcasting changes via SNS (Amazon Simple Notification Service).
 ///
 /// # Features
-/// - **Insert, Update, Delete**: CRUD operations for managing text collaboratively.
-/// - **Fetch, Load**: Retrieve and initialize document snapshots.
-/// - **SNS Integration**: Broadcasts changes to other replicas.
+/// **Insert, Update, Delete**: CRUD operations for managing text collaboratively.
+/// **Fetch, Load**: Retrieve and initialize document snapshots.
+/// **SNS Integration**: Broadcasts changes to other replicas.
 
 /// Shared state type: Maps document IDs to their corresponding RGA instances.
 type SharedRGAs = Arc<Mutex<HashMap<Uuid, RGA>>>;
@@ -43,7 +43,6 @@ type SharedRGAs = Arc<Mutex<HashMap<Uuid, RGA>>>;
 ///     "document_id" : "f47ac10b-58cc-4372-a567-0e02b2c3d479",
 ///     "message" : "Document f47ac10b-58cc-4372-a567-0e02b2c3d479 created successfully"
 /// }
-
 #[post("/create_document", format = "json", data = "<request>")]
 pub async fn create_document(
     request: Json<CreateDocumentRequest>,
@@ -61,18 +60,12 @@ pub async fn create_document(
         request.title.to_string()
     };
 
-    // Get the current timestamp (in ISO 8601 format) for the document creation
     let create_date = chrono::Utc::now().to_rfc3339();
-
-    // Initial content for the document
     let initial_content = String::new();
-
-    // SQL query to insert the document metadata into the documents table
     let document_query = client.prepare("INSERT INTO document (owner_id,creation_date,title) VALUES ($1,$2,$3) RETURNING document_id").await.map_err(|_| {
         error!("Failed to create insert query for document table");
         return ApiError::DatabaseError(format!("Failed to create insert query for document table"));
 })?;
-    // Execute the query and retrueve the document_id (UUID) for the new document
     let document_id: Uuid = client
         .query_one(&document_query, &[&request.owner_id, &create_date, &title])
         .await
@@ -85,7 +78,6 @@ pub async fn create_document(
         })?
         .get(0);
 
-    // Start Database trasaction to ensure atomicity
     let tx = client.transaction().await.map_err(|e| {
         error!("Failed to start database transaction");
         ApiError::DatabaseError(format!("Failed to start transaction: {}", e.to_string()))
@@ -117,7 +109,7 @@ pub async fn create_document(
     )
     .await
     .map_err(|e| {
-        error!("Failed to insert into document_snapshot table");
+        error!(target: "error_logger","Failed to insert into document_snapshot table");
         ApiError::DatabaseError(format!(
             "Failed to insert document snapshot into the document_snapshots table: {}",
             e.to_string()
@@ -142,7 +134,7 @@ pub async fn create_document(
     )
     .await
     .map_err(|e| {
-        error!("Failed to insert into operation table");
+        error!(target:"error_logger","Failed to insert into operation table");
         ApiError::DatabaseError(format!(
             "Failed to insert operation into the operations table: {}",
             e.to_string()
