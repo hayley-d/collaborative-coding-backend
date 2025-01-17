@@ -136,10 +136,18 @@ pub async fn create_document(
     })?;
 
     // Commit the transaction to persist the changes
-    tx.commit().await.map_err(|e| {
-        error!("Failed to commit database transaction");
-        ApiError::DatabaseError(format!("Failed to commit transaction: {}", e.to_string()))
-    })?;
+    match tx.commit().await {
+        Ok(_) => (),
+        Err(_) => {
+            error!("Failed to commit database transaction");
+            ApiError::DatabaseError("Failed to commit transaction".to_string());
+
+            match tx.rollback().await {
+                Ok(_) => (),
+                Err(_) => {}
+            };
+        }
+    };
 
     Ok(Json(CreateDocumentResponse {
         document_id,
