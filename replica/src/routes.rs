@@ -584,9 +584,13 @@ pub async fn update(
         }
     };
 
-    tx.commit().await.map_err(|e| {
-        ApiError::DatabaseError(format!("Failed to commit transaction: {:?}", e.to_string()))
-    })?;
+    match tx.commit().await {
+        Ok(q) => q,
+        Err(_) => {
+            error!(target:"error_logger","Failed to commit database transaction");
+            return Err(ApiError::RequestFailed("Failed to commit database transaction".to_string()));
+        }
+    };
 
     //Broadcast to SNS
     match db::send_operation(Arc::clone(sns_client), &topic.lock().await, &op).await {
