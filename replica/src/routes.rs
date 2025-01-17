@@ -90,7 +90,7 @@ pub async fn create_document(
     })?;
 
     let tx = client.transaction().await.map_err(|e| {
-        error!("Failed to start database transaction");
+        error!(target:"error_logger","Failed to start database transaction");
         ApiError::DatabaseError(format!("Failed to start transaction: {}", e.to_string()))
     })?;
 
