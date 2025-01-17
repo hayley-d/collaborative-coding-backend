@@ -66,7 +66,8 @@ pub async fn create_document(
             error!(target:"error_logger","Failed to create insert query for document table");
             return Err(ApiError::DatabaseError("Failed to create insert query for document table".to_string()));
         }
-};
+    };
+
     let document_id: Uuid = match client
         .query_one(&document_query, &[&request.owner_id, &create_date, &title])
         .await
@@ -202,8 +203,14 @@ pub async fn fetch_document(
     replica_id: &rocket::State<Arc<Mutex<i64>>>,
     db: &rocket::State<Arc<Mutex<Client>>>,
 ) -> Result<(), ApiError> {
-    let document_id: Uuid = Uuid::parse_str(&id)
-        .map_err(|_| ApiError::RequestFailed(format!("Failed to parse document id")))?;
+    let document_id: Uuid = match Uuid::parse_str(&id) {
+        Ok(id) => id,
+        Err(_) => {
+            return Err(ApiError::RequestFailed(
+                "Failed to parse document id".to_string(),
+            ));
+        }
+    };
 
     let mut rgas = rgas.lock().await;
     let client = db.lock().await;
