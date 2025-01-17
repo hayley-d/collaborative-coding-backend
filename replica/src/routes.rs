@@ -234,9 +234,15 @@ pub async fn fetch_document(
         }
     };
 
-    let rows = client.query(query, &[&document_id]).await.map_err(|e| {
-        ApiError::DatabaseError(format!("Failed to find document in database: {:?}", e))
-    })?;
+    let rows = match client.query(&query, &[&document_id]).await {
+        Ok(r) => r,
+        Err(_) => {
+            error!(target:"error_logger","Failed to execute select statement for the document_snapshot table");
+            return Err(ApiError::DatabaseError(
+                "Failed to find document in database".to_string(),
+            ));
+        }
+    };
 
     let snapshots: Vec<DocumentSnapshot> = rows
         .iter()
