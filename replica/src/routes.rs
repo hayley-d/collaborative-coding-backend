@@ -60,10 +60,13 @@ pub async fn create_document(
 
     let create_date = chrono::Utc::now().to_rfc3339();
     let initial_content = String::new();
-    let document_query = client.prepare("INSERT INTO document (owner_id,creation_date,title) VALUES ($1,$2,$3) RETURNING document_id").await.map_err(|_| {
-        error!(target:"error_logger","Failed to create insert query for document table");
-        return ApiError::DatabaseError("Failed to create insert query for document table".to_string());
-})?;
+    let document_query = match client.prepare("INSERT INTO document (owner_id,creation_date,title) VALUES ($1,$2,$3) RETURNING document_id").await{
+        Ok(dq) => dq,
+        Err(_) => {
+            error!(target:"error_logger","Failed to create insert query for document table");
+            return Err(ApiError::DatabaseError("Failed to create insert query for document table".to_string()));
+        }
+};
     let document_id: Uuid = match client
         .query_one(&document_query, &[&request.owner_id, &create_date, &title])
         .await
