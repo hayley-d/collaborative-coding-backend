@@ -70,7 +70,7 @@ pub async fn create_document(
         .map_err(|e| {
             error!("Failed to insert document into document table");
             ApiError::DatabaseError(format!(
-                "Failed to insert document metadata into the documents table: {}",
+                "Failed to insert into the documents table: {}",
                 e.to_string()
             ))
         })?
