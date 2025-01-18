@@ -1,6 +1,6 @@
 pub mod rga {
     use rocket::tokio::sync::RwLock;
-    use uuid::{uuid, Uuid};
+    use uuid::Uuid;
 
     /// The `RGA` module implements a Replicated Growable Array (RGA),
     /// a Conflict-free Replicated Data Type (CRDT) designed for distributed systems.
@@ -600,7 +600,7 @@ pub mod rga {
                     break;
                 }
             }
-            return result;
+            result
         }
 
         pub async fn apply_buffered_operations(&mut self) {
@@ -617,13 +617,8 @@ pub mod rga {
                 match op.operation {
                     OperationType::Insert => {
                         if let Some(value) = &op.value {
-                            self.remote_insert(
-                                value.clone(),
-                                op.s4vector,
-                                op.left.clone(),
-                                op.right.clone(),
-                            )
-                            .await;
+                            self.remote_insert(value.clone(), op.s4vector, op.left, op.right)
+                                .await;
                         }
                     }
                     OperationType::Update => {

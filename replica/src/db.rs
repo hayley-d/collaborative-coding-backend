@@ -40,7 +40,7 @@ pub async fn connect_to_db() -> Result<Client, ApiError> {
             ApiError::DatabaseError(e.to_string())
         })?;
 
-    tokio::spawn(async move { connection.await });
+    tokio::spawn(async move { connection });
     info!(target:"request_logger","Successfully established a connection to the database");
     Ok(client)
 }
