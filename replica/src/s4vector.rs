@@ -128,12 +128,12 @@ impl S4Vector {
             (None, None) => 1,                         // first element
         };
 
-        return S4Vector {
+        S4Vector {
             ssn: current_session,
             sum: new_sum,
             sid: local_site,
             seq: *local_sequence,
-        };
+        }
     }
 }
 
