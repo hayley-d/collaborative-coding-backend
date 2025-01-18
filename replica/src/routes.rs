@@ -641,7 +641,10 @@ pub async fn delete(
         .await
     {
         Ok(obj) => obj,
-        Err(_) => return Err(ApiError::RequestFailed(format!("Error updating file"))),
+        Err(_) => {
+            error!(target:"error_logger","Failed to update file");
+            return Err(ApiError::RequestFailed("Error updating file".to_string()));
+        }
     };
 
     op.document_id = document_id;
