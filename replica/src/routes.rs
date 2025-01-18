@@ -736,7 +736,9 @@ pub async fn delete(
 
     //Broadcast to SNS
     match db::send_operation(Arc::clone(sns_client), &topic.lock().await, &op).await {
-        Ok(_) => (),
+        Ok(_) =>  {
+            info!(target:"request_logger","SNS broadcast notifiction sent to other replicas");
+        },
         Err(_) => {
             error!(target:"error_logger","Failed to send SNS notificaiton");
             return Err(ApiError::DatabaseError(
@@ -745,7 +747,7 @@ pub async fn delete(
         }
     };
 
-    return Ok(());
+    Ok(())
 }
 
 // Receives SNS notifications to perform remote operations
