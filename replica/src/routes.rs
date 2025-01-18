@@ -794,7 +794,11 @@ pub async fn handle_sns_notification(
         "Delete" => {
             rga.remote_delete(operation.s4vector()).await;
         }
-        _ => return Err(ApiError::RequestFailed(format!("Invalid operation"))),
+        _ => {
+            error!(target:"error_logger","Invalid operation type");
+            return Err(ApiError::RequestFailed("Invalid operation".to_string()));
+        
+        }
     }
 
     return Ok(());
