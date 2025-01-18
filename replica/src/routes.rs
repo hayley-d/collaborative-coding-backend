@@ -629,7 +629,11 @@ pub async fn delete(
     // Check if the document has been loaded
     let rga: &mut RGA = match rgas.get_mut(&document_id) {
         Some(r) => r,
-        None => return Err(ApiError::RequestFailed(String::from("Document not found"))),
+        None => 
+        {
+            error!(target:"error_logger","Document could not be found.");
+            return Err(ApiError::RequestFailed(String::from("Document not found")));
+        }
     };
 
     let mut op: BroadcastOperation = match rga
