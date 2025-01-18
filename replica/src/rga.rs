@@ -261,7 +261,7 @@ pub mod rga {
                         if next_s4 > &node.read().await.s4vector {
                             break;
                         }
-                        current = next_s4.clone();
+                        current = *next_s4;
                     } else {
                         break;
                     }
@@ -273,9 +273,7 @@ pub mod rga {
                 }
             }
 
-            if self.head.is_none() {
-                self.head = Some(node.read().await.s4vector);
-            } else if left.is_none() {
+            if self.head.is_none() || left.is_none() {
                 self.head = Some(node.read().await.s4vector);
             }
 
@@ -548,7 +546,7 @@ pub mod rga {
 
             self.hash_map
                 .insert(node.read().await.s4vector, Arc::clone(&node));
-            let _ = Box::pin(async move {
+            let _r = Box::pin(async move {
                 self.apply_buffered_operations().await;
             });
         }
