@@ -801,5 +801,5 @@ pub async fn handle_sns_notification(
         }
     }
 
-    return Ok(());
+    Ok(())
 }
