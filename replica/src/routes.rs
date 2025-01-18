@@ -772,7 +772,7 @@ pub async fn handle_sns_notification(
         Some(r) => r,
         None => {
             error!(target:"error_logger","Failed to load the document");
-            return Err(ApiError::RequestFailed(format!("Document not loaded")));
+            return Err(ApiError::RequestFailed("Document not loaded".to_string()));
         }
     };
 
