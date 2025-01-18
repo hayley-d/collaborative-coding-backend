@@ -231,10 +231,7 @@ pub mod rga {
                     rga.head = Some(op.s4vector);
                     flag = true;
                 }
-                let value = match op.value {
-                    Some(v) => v,
-                    None => String::new(),
-                };
+                let value = op.value.unwrap_or_default();
                 let node: Node =
                     Node::create_from_existing(op.s4vector, value, op.tombstone, op.left, op.right);
                 rga.hash_map
@@ -252,10 +249,10 @@ pub mod rga {
         /// # Returns
         /// The node inserted into the RGA.
         async fn insert_into_list(&mut self, node: Arc<RwLock<Node>>) -> Arc<RwLock<Node>> {
-            let left: Option<S4Vector> = node.read().await.left.clone();
+            let left: Option<S4Vector> = node.read().await.left;
 
             if let Some(left) = left {
-                let mut current: S4Vector = left.clone();
+                let mut current: S4Vector = left;
                 while let Some(node) = self.hash_map.get(&current) {
                     if let Some(next_s4) = &node.read().await.right {
                         if next_s4 > &node.read().await.s4vector {
