@@ -55,10 +55,10 @@ impl std::hash::Hash for S4Vector {
 impl PartialEq for S4Vector {
     // Two `S4Vector` instances are equal if all their fields match.
     fn eq(&self, other: &Self) -> bool {
-        return self.ssn == other.ssn
+        self.ssn == other.ssn
             && self.sum == other.sum
             && self.sid == other.sid
-            && self.seq == other.seq;
+            && self.seq == other.seq
     }
 }
 
@@ -68,7 +68,7 @@ impl Eq for S4Vector {}
 impl PartialOrd for S4Vector {
     /// Defines partial ordering for `S4Vector` using its fields.
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        return Some(self.cmp(other));
+        Some(self.cmp(other))
     }
 }
 
@@ -79,12 +79,11 @@ impl Ord for S4Vector {
     /// - `sid` (Site ID)
     /// - `seq` (Sequence number)
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        return self
-            .ssn
+        self.ssn
             .cmp(&other.ssn)
             .then(self.sum.cmp(&other.sum))
             .then(self.sid.cmp(&other.sid))
-            .then(self.seq.cmp(&other.seq));
+            .then(self.seq.cmp(&other.seq))
     }
 }
 
