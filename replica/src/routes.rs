@@ -738,6 +738,7 @@ pub async fn delete(
     match db::send_operation(Arc::clone(sns_client), &topic.lock().await, &op).await {
         Ok(_) => (),
         Err(_) => {
+            error!(target:"error_logger","Failed to send SNS notificaiton");
             return Err(ApiError::DatabaseError(format!(
                 "Failed to send SNS notification"
             )))
