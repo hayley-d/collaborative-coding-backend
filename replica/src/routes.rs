@@ -690,7 +690,10 @@ pub async fn delete(
         ],
     )
     .await{
-        Ok(tx) => tx,
+        Ok(tx) => {
+            info!(target:"request_logger","Successful insert query in operations table");
+            tx
+        }
         Err(_) => {
             error!(target:"error_logger","Failed to perform insert into operations table");
             return Err(ApiError::DatabaseError("Failed to perform insert into operations table".to_string()));
