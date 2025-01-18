@@ -739,9 +739,9 @@ pub async fn delete(
         Ok(_) => (),
         Err(_) => {
             error!(target:"error_logger","Failed to send SNS notificaiton");
-            return Err(ApiError::DatabaseError(format!(
-                "Failed to send SNS notification"
-            )))
+            return Err(ApiError::DatabaseError(
+                "Failed to send SNS notification".to_string()
+            ))
         }
     };
 
