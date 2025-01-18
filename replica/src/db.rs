@@ -40,7 +40,11 @@ pub async fn connect_to_db() -> Result<Client, ApiError> {
             ApiError::DatabaseError(e.to_string())
         })?;
 
-    tokio::spawn(async move { connection });
+    tokio::spawn(async move {
+        if let Err(_) = connection.await {
+            error!(target:"error_logger","Failed to keep PostgreSQL connection")
+        }
+    });
     info!(target:"request_logger","Successfully established a connection to the database");
     Ok(client)
 }
