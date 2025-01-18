@@ -758,8 +758,13 @@ pub async fn handle_sns_notification(
 ) -> Result<(), ApiError> {
     let mut rags = rgas.lock().await;
 
-    let operation: BroadcastOperation = serde_json::from_str(&notification.0.message)
-        .map_err(|_| ApiError::InternalServerError(format!("Failed to parse SNS message")))?;
+    let operation: BroadcastOperation = match serde_json::from_str(&notification.0.message) {
+        Ok(op) => op,
+        Err(_) => {
+            error!(target:"error_logger","Failed to parse SNS message");
+            return Err(ApiError::InternalServerError("Failed to parse SNS message".to_string()));
+        }
+    };
 
     let rga = rags.get_mut(&operation.document_id);
 
