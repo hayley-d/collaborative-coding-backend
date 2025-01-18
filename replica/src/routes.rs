@@ -771,6 +771,7 @@ pub async fn handle_sns_notification(
     let rga = match rga {
         Some(r) => r,
         None => {
+            error!(target:"error_logger","Failed to load the document");
             return Err(ApiError::RequestFailed(format!("Document not loaded")));
         }
     };
