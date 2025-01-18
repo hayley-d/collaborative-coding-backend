@@ -676,8 +676,8 @@ pub async fn delete(
         }
     };
 
-    tx.execute(
-        operation_query,
+    match tx.execute(
+        &operation_query,
         &[
             &document_id,
             &(s4.ssn as i64),
@@ -689,16 +689,16 @@ pub async fn delete(
             &current_time,
         ],
     )
-    .await
-    .map_err(|e| {
-        ApiError::DatabaseError(format!(
-            "Failed to insert into operations table: {:?}",
-            e.to_string()
-        ))
-    })?;
+    .await{
+        Ok(tx) => tx,
+        Err(_) => {
+            error!(target:"error_logger","Failed to perform insert into operations table");
+            return Err(ApiError::DatabaseError("Failed to perform insert into operations table".to_string()));
+        }
+    };
 
-    tx.execute(
-        snapshot_query,
+    match tx.execute(
+        &snapshot_query,
         &[
             &document_id,
             &(s4.ssn as i64),
@@ -709,13 +709,13 @@ pub async fn delete(
             &false,
         ],
     )
-    .await
-    .map_err(|e| {
-        ApiError::DatabaseError(format!(
-            "Failed to update document_snapshot table: {:?}",
-            e.to_string()
-        ))
-    })?;
+    .await {
+        Ok(tx) => tx,
+        Err(_) => {
+            error!(target:"error_logger","Failed to perform insert into document_snapshot table");
+            return Err(ApiError::DatabaseError("Failed to perform insert into document_snapshot table".to_string()));
+        }
+    };
 
     tx.commit().await.map_err(|e| {
         ApiError::DatabaseError(format!("Failed to commit transaction: {:?}", e.to_string()))
