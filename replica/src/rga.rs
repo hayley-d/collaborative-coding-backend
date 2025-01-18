@@ -435,7 +435,7 @@ pub mod rga {
             document_id: Uuid,
         ) -> Result<BroadcastOperation, OperationError> {
             let node: Arc<RwLock<Node>> = match self.hash_map.get(&s4vector) {
-                Some(node) => Arc::clone(&node),
+                Some(node) => node.clone(),
                 None => {
                     self.buffer.push_back(Operation {
                         operation: OperationType::Delete,
@@ -557,14 +557,14 @@ pub mod rga {
         /// This operation updates the RGA to ensure eventual consistency
         pub async fn remote_delete(&mut self, s4vector: S4Vector) {
             let node: Arc<RwLock<Node>> = match self.hash_map.get(&s4vector) {
-                Some(node) => Arc::clone(&node),
+                Some(node) => node.clone(),
                 None => {
                     // The values has not been added yet
                     return;
                 }
             };
             node.write().await.tombstone = true;
-            let _ = Box::pin(async move {
+            let _r = Box::pin(async move {
                 self.apply_buffered_operations().await;
             });
         }
@@ -576,7 +576,7 @@ pub mod rga {
             if !node.read().await.tombstone {
                 node.write().await.value = value;
             }
-            let _ = Box::pin(async move {
+            let _r = Box::pin(async move {
                 self.apply_buffered_operations().await;
             });
         }
