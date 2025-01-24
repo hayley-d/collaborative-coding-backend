@@ -63,5 +63,12 @@ pub mod consistent_hashing {
                 ring,
             }
         }
+
+        // calculates the hash of the node address for the ring
+        pub fn add_node<T: Hash>(address: &T) -> u64 {
+            let mut hasher = DefaultHasher::new();
+            address.hash(&mut hasher);
+            hasher.finish()
+        }
     }
 }
