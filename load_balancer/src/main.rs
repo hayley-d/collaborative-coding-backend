@@ -54,3 +54,71 @@ async fn main() -> Result<(), Box<dyn std::error::Error + 'static>> {
 
     Ok(())
 }
+
+async fn reverse_proxy(listener: TcpListener, state: Arc<Mutex<LoadBalancer>>) {
+    loop {
+        let state = state.clone();
+        if let Ok((mut stream, client_address)) = listener.accept().await {
+            tokio::spawn(async move {
+                let mut buffer: [u8; 4096] = [0; 4096];
+
+                if let Ok(bytes_read) = stream.read(&mut buffer).await {
+                    if bytes_read == 0 {
+                        return;
+                    }
+
+                    println!(
+                        "{}",
+                        String::from_utf8(buffer[..bytes_read].to_vec()).unwrap()
+                    );
+
+                    let mut request: http::Request<Vec<u8>> = match buffer_to_request(
+                        buffer[..bytes_read].to_vec(),
+                        client_address.to_string(),
+                        0,
+                    ) {
+                        Ok(request) => request,
+                        Err(e) => {
+                            eprintln!("Failed to parse request: {}", e);
+                            send_error_response(400, &mut stream).await;
+                            return;
+                        }
+                    };
+
+                    // Ignore favicon.ico requests
+                    if request.uri().path() == "/favicon.ico" {
+                        send_error_response(404, &mut stream).await;
+                        return;
+                    }
+
+                    // add the client IP address custom header
+                    request
+                        .headers_mut()
+                        .insert("X-Client-IP", client_address.to_string().parse().unwrap());
+
+                    let uri = request.uri().path().to_string();
+
+                    let request: load_balancer::request::Request =
+                        load_balancer::request::Request::new(
+                            uri,
+                            client_address.to_string(),
+                            request,
+                        );
+
+                    let mut state = state.lock().await;
+
+                    let response = match state.distribute(request).await {
+                        Ok(r) => r,
+                        Err(_) => "HTTP/1.1 429 Too Many Requests\r\nContent-Length: 0\r\n\r\n"
+                            .to_string()
+                            .into_bytes(),
+                    };
+
+                    if (stream.write_all(&response).await).is_err() {
+                        eprintln!("Failed to responed to client");
+                    };
+                }
+            });
+        }
+    }
+}
