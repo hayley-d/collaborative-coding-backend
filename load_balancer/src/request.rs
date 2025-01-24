@@ -248,3 +248,46 @@ impl Display for HttpCode {
         }
     }
 }
+
+impl PartialEq for HttpCode {
+    fn eq(&self, other: &Self) -> bool {
+        match self {
+            HttpCode::Ok => match other {
+                HttpCode::Ok => true,
+                _ => false,
+            },
+            HttpCode::Created => match other {
+                HttpCode::Created => true,
+                _ => false,
+            },
+            HttpCode::BadRequest => match other {
+                HttpCode::BadRequest => true,
+                _ => false,
+            },
+            HttpCode::Unauthorized => match other {
+                HttpCode::Unauthorized => true,
+                _ => false,
+            },
+            HttpCode::NotFound => match other {
+                HttpCode::NotFound => true,
+                _ => false,
+            },
+            HttpCode::MethodNotAllowed => match other {
+                HttpCode::MethodNotAllowed => true,
+                _ => false,
+            },
+            HttpCode::RequestTimeout => match other {
+                HttpCode::RequestTimeout => true,
+                _ => false,
+            },
+            HttpCode::Teapot => match other {
+                HttpCode::Teapot => true,
+                _ => false,
+            },
+            HttpCode::InternalServerError => match other {
+                HttpCode::InternalServerError => true,
+                _ => false,
+            },
+        }
+    }
+}
