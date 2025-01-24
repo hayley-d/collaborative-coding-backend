@@ -232,3 +232,19 @@ pub enum HttpCode {
     Teapot,
     InternalServerError,
 }
+
+impl Display for HttpCode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            HttpCode::Ok => write!(f, "200 OK"),
+            HttpCode::Created => write!(f, "201 Created"),
+            HttpCode::BadRequest => write!(f, "400 Bad Request"),
+            HttpCode::Unauthorized => write!(f, "401 Unauthorized"),
+            HttpCode::NotFound => write!(f, "404 Not Found"),
+            HttpCode::MethodNotAllowed => write!(f, "405 Method Not Allowed"),
+            HttpCode::RequestTimeout => write!(f, "408 Request Timeout"),
+            HttpCode::Teapot => write!(f, "418 I'm a teapot"),
+            HttpCode::InternalServerError => write!(f, "500 Internal Server Error"),
+        }
+    }
+}
