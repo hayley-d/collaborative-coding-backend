@@ -81,3 +81,15 @@ impl Display for Protocol {
         }
     }
 }
+
+#[derive(Debug)]
+pub struct Header {
+    pub title: String,
+    pub value: String,
+}
+
+impl Display for Header {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} : {}", self.title, self.value)
+    }
+}
