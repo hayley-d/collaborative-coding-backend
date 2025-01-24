@@ -9,4 +9,6 @@ pub mod consistent_hashing {
     use tokio::net::TcpStream;
     use tokio::time::timeout;
     use tonic::transport::Channel;
+
+    const RATELIMITERADDRESS: &str = "http://127.0.0.1:50051";
 }
