@@ -25,4 +25,13 @@ pub mod consistent_hashing {
             Node { address }
         }
     }
+
+    pub struct LoadBalancer {
+        pub buffer: VecDeque<Request>,
+        pub nodes: Vec<Node>,
+        pub lamport_timestamp: u64,
+        pub ring: BTreeMap<u64, String>,
+    }
+
+    impl LoadBalancer {}
 }
