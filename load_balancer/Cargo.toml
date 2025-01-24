@@ -4,3 +4,21 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+tokio = { version = "1.42.0", features = ["full"] }
+chrono = "0.4.39"
+thiserror = "2.0.9"
+tonic = "0.12.3"
+prost = "0.13.4"
+uuid = {version = "1.11.0",features = ["v4"]}
+rand = "0.8.5"
+hyper = { version="1.5.2",features=["full"]}
+hyper-util = {version="0.1.10",features=["full"]}
+http-body-util = "0.1.2"
+bytes = "1.9.0"
+http = "1.2.0"
+dotenv = "0.15.0"
+dotenv_codegen = "0.15.0"
+tokio-util = "0.7.13"
+
+[build-dependencies]
+tonic-build = "0.12.3"
