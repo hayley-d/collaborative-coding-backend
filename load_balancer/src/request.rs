@@ -47,3 +47,11 @@ pub fn buffer_to_request(
         .body(body)
         .unwrap());
 }
+
+use core::str;
+use std::fmt::Display;
+
+#[derive(Debug)]
+pub struct Clock {
+    lamport_timestamp: i64,
+}
