@@ -110,3 +110,22 @@ impl Display for ContentType {
         }
     }
 }
+
+pub struct HttpRequest {
+    pub request_id: i64,
+    pub client_ip: String,
+    pub headers: Vec<String>,
+    pub body: String,
+    pub method: HttpMethod,
+    pub uri: String,
+}
+
+impl Display for HttpRequest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Request: {{method: {}, path: {}, request_id: {},client_ip: {}}}",
+            self.method, self.uri, self.request_id, self.client_ip
+        )
+    }
+}
