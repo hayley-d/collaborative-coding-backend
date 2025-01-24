@@ -147,3 +147,37 @@ fn get_nodes() -> Vec<String> {
 
     nodes
 }
+
+async fn send_error_response(code: u64, stream: &mut TcpStream) {
+    match code {
+        429 => {
+            let response_bytes = "HTTP/1.1 429 Too Many Requests\r\nContent-Length: 0\r\n\r\n"
+                .to_string()
+                .into_bytes();
+
+            let _ = stream.write_all(&response_bytes).await;
+        }
+        400 => {
+            let response_bytes = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n"
+                .to_string()
+                .into_bytes();
+
+            let _ = stream.write_all(&response_bytes).await;
+        }
+        404 => {
+            let response_bytes = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n"
+                .to_string()
+                .into_bytes();
+
+            let _ = stream.write_all(&response_bytes).await;
+        }
+
+        _ => {
+            let response_bytes = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n"
+                .to_string()
+                .into_bytes();
+
+            let _ = stream.write_all(&response_bytes).await;
+        }
+    }
+}
