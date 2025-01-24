@@ -33,5 +33,35 @@ pub mod consistent_hashing {
         pub ring: BTreeMap<u64, String>,
     }
 
-    impl LoadBalancer {}
+    impl LoadBalancer {
+        pub fn increment_time(&mut self) -> u64 {
+            let temp = self.lamport_timestamp;
+            self.lamport_timestamp += 1;
+            temp
+        }
+
+        pub async fn new(addresses: &mut Vec<String>) -> Self {
+            let mut ring = BTreeMap::new();
+
+            // gets the hash for each node
+            for node in addresses.clone() {
+                let hash = Self::add_node(&node);
+                ring.insert(hash, node.clone());
+            }
+
+            let mut nodes: Vec<Node> = Vec::new();
+            for node in addresses {
+                nodes.push(Node {
+                    address: node.to_string(),
+                });
+            }
+
+            LoadBalancer {
+                buffer: VecDeque::new(),
+                nodes,
+                lamport_timestamp: 0,
+                ring,
+            }
+        }
+    }
 }
