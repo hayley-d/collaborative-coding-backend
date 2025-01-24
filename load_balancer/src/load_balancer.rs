@@ -1,7 +1,6 @@
 pub mod consistent_hashing {
     use crate::rate_limiter_proto::rate_limiter_client::RateLimiterClient;
     use crate::rate_limiter_proto::RateLimitRequest;
-    use crate::request::Request;
     use std::collections::{BTreeMap, VecDeque};
     use std::hash::{DefaultHasher, Hash, Hasher};
     use std::time::Duration;
@@ -27,10 +26,10 @@ pub mod consistent_hashing {
     }
 
     pub struct LoadBalancer {
-        pub buffer: VecDeque<Request>,
+        pub buffer: VecDeque<crate::request::Request>,
         pub nodes: Vec<Node>,
         pub lamport_timestamp: u64,
-        pub ring: BTreeMap<u64, String>,
+        pub ring: std::collections::BTreeMap<u64, String>,
     }
 
     impl LoadBalancer {
@@ -71,7 +70,10 @@ pub mod consistent_hashing {
             hasher.finish()
         }
 
-        pub async fn distribute(&mut self, request: Request) -> Result<Vec<u8>, hyper::Error> {
+        pub async fn distribute(
+            &mut self,
+            request: crate::request::Request,
+        ) -> Result<Vec<u8>, hyper::Error> {
             let rate_limit_request = RateLimitRequest {
                 ip_address: request.client_ip.clone(),
                 endpoint: request.uri.clone(),
