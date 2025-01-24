@@ -70,5 +70,114 @@ pub mod consistent_hashing {
             address.hash(&mut hasher);
             hasher.finish()
         }
+
+        pub async fn distribute(&mut self, request: Request) -> Result<Vec<u8>, hyper::Error> {
+            let rate_limit_request = RateLimitRequest {
+                ip_address: request.client_ip.clone(),
+                endpoint: request.uri.clone(),
+                request_id: request.request_id.to_string(),
+            };
+
+            // send request to rate limiter
+            let mut client: RateLimiterClient<Channel> =
+                match RateLimiterClient::connect(RATELIMITERADDRESS.to_string().clone()).await {
+                    Ok(c) => c,
+                    Err(_) => {
+                        eprintln!("Connection to rate limiter could not be esablished");
+                        return Ok(
+                            "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n"
+                                .to_string()
+                                .into_bytes(),
+                        );
+                    }
+                };
+
+            let response = match timeout(
+                Duration::from_millis(10),
+                client.check_request(rate_limit_request),
+            )
+            .await
+            {
+                Ok(Ok(value)) => value,
+                Ok(Err(_)) => {
+                    return Ok(
+                        "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n"
+                            .to_string()
+                            .into_bytes(),
+                    );
+                }
+                Err(_) => {
+                    return Ok(
+                        "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n"
+                            .to_string()
+                            .into_bytes(),
+                    );
+                }
+            };
+
+            if !response.into_inner().allowed {
+                return Ok(
+                    "HTTP/1.1 429 Too Many Requests\r\nContent-Length: 0\r\n\r\n"
+                        .to_string()
+                        .into_bytes(),
+                );
+            }
+
+            let node_address = match self.get_node(&request.client_ip) {
+                Some(address) => address.clone(),
+                _ => {
+                    return Ok(
+                        "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n"
+                            .to_string()
+                            .into_bytes(),
+                    );
+                }
+            };
+
+            self.increment_time();
+
+            let request = match serialize_request(request.request).await {
+                Ok(r) => r,
+                _ => {
+                    return Ok(
+                        "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n"
+                            .to_string()
+                            .into_bytes(),
+                    );
+                }
+            };
+
+            let mut stream = match TcpStream::connect(node_address).await {
+                Ok(s) => s,
+                Err(_) => {
+                    return Ok(
+                        "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n"
+                            .to_string()
+                            .into_bytes(),
+                    );
+                }
+            };
+
+            if (stream.write_all(&request).await).is_err() {
+                eprintln!("Failed to write to server");
+                return Ok(
+                    "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n"
+                        .to_string()
+                        .into_bytes(),
+                );
+            }
+
+            let mut server_response = Vec::new();
+            if (stream.read_to_end(&mut server_response).await).is_err() {
+                eprintln!("Failed to read from server");
+                return Ok(
+                    "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n"
+                        .to_string()
+                        .into_bytes(),
+                );
+            }
+
+            Ok(server_response)
+        }
     }
 }
