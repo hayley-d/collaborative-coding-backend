@@ -27,3 +27,23 @@ impl Request {
         }
     }
 }
+
+pub fn buffer_to_request(
+    buffer: Vec<u8>,
+    client_ip: String,
+    request_id: i64,
+) -> Result<http::Request<Vec<u8>>, String> {
+    let http_request: HttpRequest = match HttpRequest::new(&buffer, client_ip, request_id) {
+        Ok(r) => r,
+        Err(e) => return Err(e),
+    };
+
+    println!("{http_request}");
+
+    let body: Vec<u8> = Vec::new();
+    return Ok(http::Request::builder()
+        .method("GET")
+        .uri("/")
+        .body(body)
+        .unwrap());
+}
