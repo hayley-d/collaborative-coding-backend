@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package rateLimiter;
+
+// Request message containing IP address, target endpoint and request ID.
+message RateLimitRequest {
+    string ip_address = 1;
+    string endpoint = 2;
+    string request_id = 3;
+}
+
+// Response message containing the request ID and if the request can proceed
+message RateLimitResponse {
+    string request_id = 1;
+    bool allowed = 2;
+}
+
+// Service definition for rate limiting
+service RateLimiter {
+    rpc CheckRequest (RateLimitRequest) returns (RateLimitResponse);
+}
+
+
