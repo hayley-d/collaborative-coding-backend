@@ -55,3 +55,16 @@ use std::fmt::Display;
 pub struct Clock {
     lamport_timestamp: i64,
 }
+
+impl Clock {
+    pub fn new() -> Self {
+        return Clock {
+            lamport_timestamp: 0,
+        };
+    }
+    pub fn increment_time(&mut self) -> i64 {
+        let temp: i64 = self.lamport_timestamp;
+        self.lamport_timestamp += 1;
+        return temp;
+    }
+}
