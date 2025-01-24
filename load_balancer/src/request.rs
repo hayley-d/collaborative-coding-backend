@@ -219,3 +219,16 @@ impl HttpRequest {
         return false;
     }
 }
+
+#[derive(Debug)]
+pub enum HttpCode {
+    Ok,
+    Created,
+    BadRequest,
+    Unauthorized,
+    NotFound,
+    MethodNotAllowed,
+    RequestTimeout,
+    Teapot,
+    InternalServerError,
+}
