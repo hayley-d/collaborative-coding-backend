@@ -191,4 +191,36 @@ pub mod consistent_hashing {
                 .or_else(|| self.ring.iter().next().map(|(_, node)| node))
         }
     }
+
+    /// Convert the http::Request struct into a byte array to send over the network
+    async fn serialize_request(
+        request: http::Request<Vec<u8>>,
+    ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+        let (parts, body) = request.into_parts();
+
+        let mut request_bytes: Vec<u8> = Vec::new();
+
+        request_bytes.extend_from_slice(parts.method.as_str().as_bytes());
+        request_bytes.extend_from_slice(b" ");
+        request_bytes.extend_from_slice(
+            parts
+                .uri
+                .path_and_query()
+                .map_or(b"/".as_slice(), |pq| pq.as_str().as_bytes()),
+        );
+        request_bytes.extend_from_slice(b" ");
+        request_bytes.extend_from_slice(format!("{:?}\r\n", parts.version).as_bytes());
+
+        for (name, value) in &parts.headers {
+            request_bytes.extend_from_slice(name.as_str().as_bytes());
+            request_bytes.extend_from_slice(b": ");
+            request_bytes.extend_from_slice(value.as_bytes());
+            request_bytes.extend_from_slice(b"\r\n");
+        }
+
+        // Add the body
+        request_bytes.extend_from_slice(&body);
+
+        Ok(request_bytes)
+    }
 }
