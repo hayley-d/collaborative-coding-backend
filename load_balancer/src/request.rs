@@ -300,3 +300,58 @@ pub enum HttpMethod {
     PATCH,
     DELETE,
 }
+
+impl HttpMethod {
+    pub fn new(method: &str) -> HttpMethod {
+        if method.to_uppercase().contains("GET") {
+            HttpMethod::GET
+        } else if method.to_uppercase().contains("POST") {
+            HttpMethod::POST
+        } else if method.to_uppercase().contains("PUT") {
+            HttpMethod::PUT
+        } else if method.to_uppercase().contains("DELETE") {
+            HttpMethod::DELETE
+        } else {
+            HttpMethod::PATCH
+        }
+    }
+}
+
+impl Display for HttpMethod {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            HttpMethod::GET => write!(f, "GET"),
+            HttpMethod::POST => write!(f, "POST"),
+            HttpMethod::PUT => write!(f, "PUT"),
+            HttpMethod::PATCH => write!(f, "PATCH"),
+            HttpMethod::DELETE => write!(f, "DELETE"),
+        }
+    }
+}
+
+impl PartialEq for HttpMethod {
+    fn eq(&self, other: &Self) -> bool {
+        match self {
+            HttpMethod::GET => match other {
+                HttpMethod::GET => true,
+                _ => false,
+            },
+            HttpMethod::POST => match other {
+                HttpMethod::POST => true,
+                _ => false,
+            },
+            HttpMethod::PUT => match other {
+                HttpMethod::PUT => true,
+                _ => false,
+            },
+            HttpMethod::PATCH => match other {
+                HttpMethod::PATCH => true,
+                _ => false,
+            },
+            HttpMethod::DELETE => match other {
+                HttpMethod::DELETE => true,
+                _ => false,
+            },
+        }
+    }
+}
