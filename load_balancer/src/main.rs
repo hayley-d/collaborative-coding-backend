@@ -130,3 +130,20 @@ async fn shutdown_signal() {
         .expect("failed to install CTRL+C signal handler");
     eprintln!("Shutdown signal received...");
 }
+
+fn get_nodes() -> Vec<String> {
+    // Load the .env file
+    dotenv().ok();
+
+    let mut nodes: Vec<String> = Vec::new();
+
+    for (key, value) in env::vars() {
+        if key.starts_with("NODE") {
+            nodes.push(value);
+        }
+    }
+
+    println!("Loaded nodes");
+
+    nodes
+}
