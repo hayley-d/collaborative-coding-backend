@@ -68,3 +68,16 @@ impl Clock {
         return temp;
     }
 }
+
+#[derive(Debug)]
+pub enum Protocol {
+    Http,
+}
+
+impl Display for Protocol {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Protocol::Http => write!(f, "HTTP/1.1"),
+        }
+    }
+}
