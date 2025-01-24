@@ -291,3 +291,12 @@ impl PartialEq for HttpCode {
         }
     }
 }
+
+#[derive(Debug)]
+pub enum HttpMethod {
+    GET,
+    POST,
+    PUT,
+    PATCH,
+    DELETE,
+}
