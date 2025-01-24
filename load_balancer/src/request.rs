@@ -93,3 +93,20 @@ impl Display for Header {
         write!(f, "{} : {}", self.title, self.value)
     }
 }
+
+#[derive(Debug)]
+pub enum ContentType {
+    Text,
+    Html,
+    Json,
+}
+
+impl Display for ContentType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ContentType::Text => write!(f, "text/plain"),
+            ContentType::Html => write!(f, "text/html"),
+            ContentType::Json => write!(f, "application/json"),
+        }
+    }
+}
