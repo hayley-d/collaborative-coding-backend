@@ -18,4 +18,11 @@ pub mod consistent_hashing {
     pub struct Node {
         pub address: String,
     }
+
+    impl Node {
+        /// Returns a new node based on the input parameters
+        pub fn new(address: String) -> Self {
+            Node { address }
+        }
+    }
 }
