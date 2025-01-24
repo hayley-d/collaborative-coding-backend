@@ -129,3 +129,93 @@ impl Display for HttpRequest {
         )
     }
 }
+
+impl HttpRequest {
+    pub fn print(&self) {
+        println!("{} New Request:", ">>");
+        println!("{}{}", self.method.to_string(), self.uri);
+    }
+
+    pub fn new(buffer: &[u8], client_ip: String, request_id: i64) -> Result<HttpRequest, String> {
+        // unwrap is safe as request has been parsed for any issues before this is called
+        let request = String::from_utf8(buffer.to_vec()).unwrap();
+
+        // split the request by line
+        let request: Vec<&str> = request.lines().collect();
+
+        if request.len() < 3 {
+            eprintln!("Recieved invalid request");
+            return Err(String::from("Invalid request"));
+        }
+
+        // get the http method from the first line
+        let method: HttpMethod =
+            HttpMethod::new(request[0].split_whitespace().collect::<Vec<&str>>()[0]);
+
+        // get the uri from the first line
+        let mut uri: String = request[0].split_whitespace().collect::<Vec<&str>>()[1].to_string();
+        if uri == "/favicon.ico" {
+            uri = "/".to_string();
+        }
+
+        // headers are the rest of the
+        let mut headers: Vec<String> = Vec::with_capacity(request.len() - 1);
+        let mut body: String = String::new();
+        let mut flag = false;
+        for line in &request[1..] {
+            if line.is_empty() {
+                flag = true;
+                continue;
+            }
+            if flag {
+                body.push_str(line);
+            } else {
+                headers.push(line.to_string());
+            }
+        }
+
+        return Ok(HttpRequest {
+            request_id,
+            client_ip,
+            headers,
+            body,
+            method,
+            uri,
+        });
+    }
+
+    pub fn is_compression_supported(&self) -> bool {
+        for header in &self.headers {
+            let header = header.to_lowercase();
+
+            if header.contains("firefox") {
+                return false;
+            }
+
+            if header.contains("accept-encoding") {
+                if header.contains(',') {
+                    // multiple compression types
+                    let mut encodings: Vec<&str> =
+                        header.split(", ").map(|m| m.trim()).collect::<Vec<&str>>();
+                    encodings[0] = &encodings[0].split_whitespace().collect::<Vec<&str>>()[1];
+
+                    for encoding in encodings {
+                        if encoding == "gzip" || encoding.contains("gzip") {
+                            return true;
+                        }
+                    }
+                } else {
+                    if header
+                        .to_lowercase()
+                        .split_whitespace()
+                        .collect::<Vec<&str>>()[1]
+                        == "gzip"
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+}
