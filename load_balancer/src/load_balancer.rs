@@ -179,5 +179,16 @@ pub mod consistent_hashing {
 
             Ok(server_response)
         }
+
+        /// Calculate the hash for a node using hasher instance
+        pub fn get_node<H: Hash>(&self, node: &H) -> Option<&String> {
+            let key = Self::add_node(node);
+
+            self.ring
+                .range(key..)
+                .next()
+                .map(|(_, node)| node)
+                .or_else(|| self.ring.iter().next().map(|(_, node)| node))
+        }
     }
 }
