@@ -1,5 +1,9 @@
+use core::str;
+use std::fmt::Display;
+use uuid::Uuid;
+
 pub struct Request {
-    pub request_id: uuid::Uuid,
+    pub request_id: Uuid,
     pub client_ip: String,
     pub uri: String,
     pub request: http::Request<Vec<u8>>,
@@ -47,9 +51,6 @@ pub fn buffer_to_request(
         .body(body)
         .unwrap());
 }
-
-use core::str;
-use std::fmt::Display;
 
 #[derive(Debug)]
 pub struct Clock {
