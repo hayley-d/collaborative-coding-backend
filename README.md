@@ -163,6 +163,5 @@ AWS_REGION=<region>
 SNS_TOPIC=<sns-topic-arn>
 REPLICA_ID=<replica-id>
 SSN_ID=<session-id>
-
-
+```
 
